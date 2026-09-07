@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' nui://*; connect-src 'self' nui://* https://*; img-src * data: https:; font-src 'self' data: https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;">
+<title>Politi MDT</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ─── LOGIN SCREEN ──────────────────────────────────────── -->
+<div id="login-screen" class="login-screen hidden">
+    <div class="login-bg-overlay"></div>
+    <div class="login-card">
+        <div class="login-logo">
+            <div class="logo-shield">⚖️</div>
+            <div class="login-title">
+                <h1>POLITI MDT</h1>
+                <span>Mobilt Dataterminal · v2.0</span>
+            </div>
+        </div>
+        <div class="login-status">
+            <span class="status-dot online"></span>
+            <span>Forbindelse til server etableret</span>
+        </div>
+        <div class="login-form">
+            <div class="form-group">
+                <label>Brugernavn</label>
+                <input type="text" id="login-username" placeholder="brugernavn" autocomplete="off" maxlength="24">
+            </div>
+            <div class="form-group">
+                <label>Adgangskode</label>
+                <div class="input-with-icon">
+                    <input type="password" id="login-password" placeholder="••••••••" maxlength="64">
+                    <button type="button" class="icon-btn" id="toggle-password" title="Vis/skjul">👁</button>
+                </div>
+            </div>
+            <div id="login-error" class="login-error hidden"></div>
+            <button id="login-btn" class="btn btn-primary btn-block">
+                <span class="btn-label">LOG IND</span>
+                <span class="btn-spinner hidden"></span>
+            </button>
+        </div>
+        <div class="login-footer">
+            <span>⚠ Uautoriseret adgang er strafbart. Alle handlinger logges.</span>
+        </div>
+    </div>
+</div>
+
+<!-- ─── PASSWORD CHANGE MODAL (force) ─────────────────────── -->
+<div id="pwchange-modal" class="modal-overlay hidden">
+    <div class="modal modal-md">
+        <div class="modal-header">
+            <h3>🔐 Skift adgangskode</h3>
+        </div>
+        <div class="modal-body">
+            <p class="muted">Du skal vælge en ny adgangskode før du kan fortsætte.</p>
+            <div class="form-group">
+                <label>Nuværende adgangskode</label>
+                <input type="password" id="pw-old" maxlength="64">
+            </div>
+            <div class="form-group">
+                <label>Ny adgangskode</label>
+                <input type="password" id="pw-new" maxlength="64">
+            </div>
+            <div class="form-group">
+                <label>Gentag ny adgangskode</label>
+                <input type="password" id="pw-new2" maxlength="64">
+            </div>
+            <div id="pw-error" class="login-error hidden"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" id="pw-save">Gem ny adgangskode</button>
+        </div>
+    </div>
+</div>
+
+<!-- ─── MAIN APP ──────────────────────────────────────────── -->
+<div id="app" class="app hidden">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <div class="brand">
+                <div class="brand-shield">⚖️</div>
+                <div class="brand-text">
+                    <strong>POLITI MDT</strong>
+                    <span>v2.0 · Mobilt Dataterminal</span>
+                </div>
+            </div>
+        </div>
+        <div class="topbar-center opacity-hover-zone" id="opacity-hover-zone">
+            <div class="quick-search">
+                <span class="qs-icon">🔍</span>
+                <input type="text" id="quick-search" placeholder="Hurtig søgning: navn, CPR, plade...">
+                <div class="quick-search-results hidden" id="quick-search-results"></div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="datetime">
+                <strong id="topbar-time">--:--</strong>
+                <span id="topbar-date">--</span>
+            </div>
+            <div class="officer-card" id="officer-card">
+                <div class="officer-avatar" id="officer-avatar">👮</div>
+                <div class="officer-info">
+                    <strong id="officer-name">—</strong>
+                    <span id="officer-rank">—</span>
+                </div>
+            </div>
+            <button class="icon-btn icon-btn-lg" id="logout-btn" title="Log ud">⏻</button>
+            <button class="icon-btn icon-btn-lg" id="close-btn" title="Luk MDT">✕</button>
+        </div>
+    </header>
+
+    <!-- LAYOUT -->
+    <div class="layout">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <!-- Navigationen bygges dynamisk ud fra Config.Menus (config.lua) i script.js -->
+            <nav class="sidenav" id="sidenav"></nav>
+            <div class="sidebar-status" id="sidebar-status">
+                <div class="status-line"><span class="status-dot online"></span><span>Online</span></div>
+                <div class="status-line"><span>Tjenestetid:</span><strong id="duty-time">--:--</strong></div>
+                <div class="status-line"><span>Enhed:</span><strong id="unit-display">Ingen</strong></div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main">
+
+            <!-- DASHBOARD -->
+            <section class="panel" data-panel="dashboard">
+                <div class="panel-header">
+                    <h2>Dashboard</h2>
+                    <div class="panel-actions">
+                        <button class="btn btn-ghost" id="refresh-dashboard">↻ Opdater</button>
+                    </div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card stat-warrants">
+                        <span class="stat-label">Aktive efterlysninger</span>
+                        <span class="stat-value" id="stat-warrants">—</span>
+                    </div>
+                    <div class="stat-card stat-cases">
+                        <span class="stat-label">Åbne sager</span>
+                        <span class="stat-value" id="stat-cases">—</span>
+                    </div>
+                    <div class="stat-card stat-arrests">
+                        <span class="stat-label">Anholdelser i dag</span>
+                        <span class="stat-value" id="stat-arrests">—</span>
+                    </div>
+                    <div class="stat-card stat-dispatches">
+                        <span class="stat-label">Aktive opkald</span>
+                        <span class="stat-value" id="stat-dispatches">—</span>
+                    </div>
+                    <div class="stat-card stat-online">
+                        <span class="stat-label">Betjente online</span>
+                        <span class="stat-value" id="stat-online">—</span>
+                    </div>
+                </div>
+                <div class="dash-grid">
+                    <div class="dash-section">
+                        <h3>🚨 Seneste efterlysninger</h3>
+                        <div class="dash-list" id="dash-warrants"></div>
+                    </div>
+                    <div class="dash-section">
+                        <h3>📡 Aktive opkald</h3>
+                        <div class="dash-list" id="dash-dispatches"></div>
+                    </div>
+                    <div class="dash-section">
+                        <h3>📁 Seneste sager</h3>
+                        <div class="dash-list" id="dash-cases"></div>
+                    </div>
+                    <div class="dash-section">
+                        <h3>⚖️ Seneste anholdelser</h3>
+                        <div class="dash-list" id="dash-arrests"></div>
+                    </div>
+                    <div class="dash-section">
+                        <h3>🏆 Top betjente (7 dage)</h3>
+                        <div class="dash-list" id="dash-topofficers"></div>
+                    </div>
+                    <div class="dash-section">
+                        <h3>🚓 Patrulje live</h3>
+                        <div class="dash-list" id="dash-patrol"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PERSONS -->
+            <section class="panel hidden" data-panel="persons">
+                <div class="panel-header">
+                    <h2>Personregister</h2>
+                </div>
+                <div class="split-view">
+                    <div class="split-left">
+                        <input type="text" class="search-input" id="persons-search" placeholder="Søg navn / CPR / telefon (min. 2 tegn)">
+                        <div class="result-list-header hidden" id="persons-results-header"></div>
+                        <div class="result-list" id="persons-results"></div>
+                    </div>
+                    <div class="split-right" id="person-detail">
+                        <div class="empty-state">
+                            <div class="empty-icon">👤</div>
+                            <p>Vælg en person for at se detaljer</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VEHICLES -->
+            <section class="panel hidden" data-panel="vehicles">
+                <div class="panel-header">
+                    <h2>Køretøjsopslag</h2>
+                </div>
+                <div class="vehicle-search">
+                    <input type="text" id="vehicle-plate" placeholder="Indtast nummerplade..." maxlength="12">
+                    <button class="btn btn-primary" id="vehicle-search-btn">Søg</button>
+                </div>
+                <div id="vehicle-result"></div>
+            </section>
+
+            <!-- CASES -->
+            <section class="panel hidden" data-panel="cases">
+                <div class="panel-header">
+                    <h2>Sigtelser</h2>
+                    <div class="panel-actions">
+                        <select id="case-filter">
+                            <option value="all">Alle</option>
+                            <option value="open">Åbne</option>
+                            <option value="investigating">Under efterforskning</option>
+                            <option value="closed">Lukkede</option>
+                            <option value="archived">Arkiverede</option>
+                        </select>
+                        <input type="text" id="case-search" placeholder="Søg titel/sagsnr...">
+                        <button class="btn btn-primary" id="new-case-btn">+ Ny sag</button>
+                    </div>
+                </div>
+                <div class="result-list" id="cases-list"></div>
+            </section>
+
+            <!-- WARRANTS -->
+            <section class="panel hidden" data-panel="warrants">
+                <div class="panel-header">
+                    <h2>Aktive Efterlysninger</h2>
+                    <div class="panel-actions">
+                        <button class="btn btn-ghost" id="warrants-refresh">↻</button>
+                    </div>
+                </div>
+                <div class="warrant-grid" id="warrants-grid"></div>
+            </section>
+
+            <!-- OPRET SIGTELSE — fuld side, ikke en modal (§15) -->
+            <section class="panel hidden" data-panel="arrest-form">
+                <div class="panel-header">
+                    <h2>Opret sigtelse</h2>
+                    <div class="panel-actions">
+                        <button class="btn btn-ghost" id="af-cancel">Annullér</button>
+                    </div>
+                </div>
+
+                <div id="af-draft-banner" class="draft-banner hidden"></div>
+
+                <div class="arrest-form">
+                    <!-- Person header -->
+                    <div class="person-head" id="af-person-head"></div>
+
+                    <!-- Deltagende betjente -->
+                    <div class="af-section">
+                        <h3>Deltagende betjente</h3>
+                        <div class="officer-picker">
+                            <div class="officer-chips" id="af-officers"></div>
+                            <div class="officer-search-wrap">
+                                <input type="text" id="af-officer-search" placeholder="Søg efter online betjent...">
+                                <div class="officer-search-results hidden" id="af-officer-results"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hændelsesforløb -->
+                    <div class="af-section">
+                        <h3>Hændelsesforløb / beskrivelse</h3>
+                        <textarea id="af-notes" rows="8" maxlength="8000" placeholder="Beskriv hændelsesforløbet..."></textarea>
+                    </div>
+
+                    <!-- Bødeskema -->
+                    <div class="af-section">
+                        <h3>Sigtelser (bødeskema)</h3>
+                        <div id="af-charges"></div>
+                        <div class="af-totals">
+                            <span>Total bøde: <strong id="af-tfine">0</strong> kr</span>
+                            <span>Total fængsel: <strong id="af-tjail">0</strong> md</span>
+                        </div>
+                    </div>
+
+                    <!-- Beslaglagte genstande -->
+                    <div class="af-section">
+                        <h3>Beslaglagte genstande</h3>
+                        <div class="seized-list" id="af-seized"></div>
+                        <div class="seized-add">
+                            <select id="af-seized-cat"></select>
+                            <input type="text" id="af-seized-item" placeholder="Genstand (fx Pistol)">
+                            <input type="number" id="af-seized-qty" value="1" min="1" max="9999">
+                            <button class="btn btn-secondary" id="af-seized-add-btn">+ Tilføj genstand</button>
+                        </div>
+                    </div>
+
+                    <!-- Klip / billeder -->
+                    <div class="af-section">
+                        <h3>Klip / billeder</h3>
+                        <div class="image-dropzone" id="af-dropzone" tabindex="0">
+                            <div class="image-dropzone-hint">
+                                <span class="image-dropzone-icon">🖼</span>
+                                <span>Klik her og indsæt billede med <strong>CTRL + V</strong></span>
+                            </div>
+                            <div class="image-thumbs" id="af-thumbs"></div>
+                        </div>
+                    </div>
+
+                    <div class="af-footer">
+                        <button class="btn btn-ghost" id="af-cancel-2">Annullér</button>
+                        <button class="btn btn-danger" id="af-submit">⚖️ Opret sigtelse</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DISPATCH (§9 — under udvikling) -->
+            <section class="panel hidden" data-panel="dispatch">
+                <div class="panel-header">
+                    <h2>Dispatch / Opkald</h2>
+                </div>
+                <div class="dev-placeholder">
+                    <div class="dev-placeholder-icon">📡</div>
+                    <h3>Under udvikling</h3>
+                    <p class="muted">Dispatch-systemet er under udvikling og er endnu ikke klar til brug. Funktionen vender tilbage i en kommende opdatering.</p>
+                </div>
+            </section>
+
+            <!-- PATROL -->
+            <section class="panel hidden" data-panel="patrol">
+                <div class="panel-header">
+                    <h2>Flådestyring</h2>
+                </div>
+                <div class="patrol-control">
+                    <div class="patrol-section">
+                        <h3>Vælg enhed</h3>
+                        <div class="unit-grid" id="unit-grid"></div>
+                    </div>
+                    <div class="patrol-section">
+                        <h3>Status</h3>
+                        <div class="status-pills">
+                            <button class="status-pill active" data-status="1">I tjeneste</button>
+                            <button class="status-pill" data-status="2">Ude af tjeneste</button>
+                            <button class="status-pill" data-status="3">Optaget</button>
+                            <button class="status-pill status-panic" data-status="4">⚠ Nødsituation</button>
+                        </div>
+                    </div>
+                </div>
+                <h3>Aktive enheder</h3>
+                <div class="fleet-grid" id="patrol-grid"></div>
+            </section>
+
+            <!-- CHARGES -->
+            <section class="panel hidden" data-panel="charges">
+                <div class="panel-header">
+                    <h2>Bødeskema</h2>
+                </div>
+                <input type="text" class="search-input" id="charges-search" placeholder="Filtrér...">
+                <div class="charges-grid" id="charges-grid"></div>
+            </section>
+
+            <!-- LAWS -->
+            <section class="panel hidden" data-panel="laws">
+                <div class="panel-header">
+                    <h2>Lovbog</h2>
+                    <div class="panel-actions">
+                        <div class="view-toggle" id="laws-view-toggle">
+                            <button class="view-toggle-btn active" data-lawview="laws">📖 Love</button>
+                            <button class="view-toggle-btn" data-lawview="radio">📻 Radiomeldinger</button>
+                        </div>
+                    </div>
+                </div>
+                <input type="text" class="search-input" id="laws-search" placeholder="Søg paragraf, titel, indhold...">
+                <div class="laws-list" id="laws-list"></div>
+                <div class="laws-list hidden" id="radio-list"></div>
+            </section>
+
+            <!-- ACCOUNTS (boss-only) -->
+            <section class="panel hidden" data-panel="accounts">
+                <div class="panel-header">
+                    <h2>MDT-konti · Boss panel</h2>
+                </div>
+                <div class="info-banner">ℹ️ Brug <code>/registermdt</code> ude på serveren for at oprette nye konti.</div>
+                <div class="accounts-actions">
+                    <button class="btn btn-ghost" id="accounts-refresh">↻ Opdater</button>
+                </div>
+                <table class="data-table" id="accounts-table">
+                    <thead>
+                        <tr>
+                            <th>Brugernavn</th>
+                            <th>Rang</th>
+                            <th>Grade</th>
+                            <th>Badge</th>
+                            <th>Status</th>
+                            <th>Oprettet af</th>
+                            <th>Oprettet</th>
+                            <th>Sidst online</th>
+                            <th>Handlinger</th>
+                        </tr>
+                    </thead>
+                    <tbody id="accounts-tbody"></tbody>
+                </table>
+            </section>
+
+            <!-- SETTINGS -->
+            <section class="panel hidden" data-panel="settings">
+                <div class="panel-header">
+                    <h2>Indstillinger</h2>
+                </div>
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <h3>🔐 Adgangskode</h3>
+                        <p class="muted">Skift din MDT-adgangskode.</p>
+                        <button class="btn btn-secondary" id="open-pwchange">Skift adgangskode</button>
+                    </div>
+                    <div class="settings-card">
+                        <h3>👤 Konto</h3>
+                        <div class="kv"><span>Brugernavn:</span><strong id="set-username">—</strong></div>
+                        <div class="kv"><span>Rang:</span><strong id="set-rank">—</strong></div>
+                        <div class="kv"><span>Badge:</span><strong id="set-badge">—</strong></div>
+                        <div class="kv"><span>Grade:</span><strong id="set-grade">—</strong></div>
+                    </div>
+                    <div class="settings-card">
+                        <h3>🔳 Gennemsigtighed</h3>
+                        <p class="muted">Justér hvor gennemsigtig tabletten skal være. Gemmes automatisk.</p>
+                        <div class="opacity-control">
+                            <input type="range" id="opacity-slider" min="10" max="100" step="10" value="100">
+                            <strong id="opacity-value">100%</strong>
+                        </div>
+                    </div>
+                    <div class="settings-card">
+                        <h3>ℹ️ System</h3>
+                        <div class="kv"><span>Version:</span><strong>2.0.0</strong></div>
+                        <div class="kv"><span>Forbindelse:</span><strong class="text-success">Aktiv</strong></div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+</div>
+
+<!-- ─── GENERIC MODAL HOST ────────────────────────────────── -->
+<div id="modal-host" class="modal-overlay hidden">
+    <div class="modal" id="modal-content"></div>
+</div>
+
+<!-- ─── TOAST CONTAINER ──────────────────────────────────── -->
+<div id="toast-container" class="toast-container"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
