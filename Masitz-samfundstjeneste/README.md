@@ -114,26 +114,42 @@ samme centrale funktion i `server/tasks.lua`. Den håndterer teleport til
 og rydder service-/session-/anti-repeat-state. Der findes bevidst ingen
 anden vej til at afslutte en tjeneste end denne ene funktion.
 
-## Anti-repeat (undgå AFK-farming)
+## Anti-repeat / ét aktivt mål ad gangen (undgå AFK-farming)
 
-`Config.Samfundstjeneste.AntiRepeat.avoidLastPoints` (standard: 2) styrer
-hvor mange af de senest brugte arbejdspunkter der udelukkes, når serveren
-vælger næste opgaves placering (`server/tasks.lua`). Er der for få unikke
-punkter til at kunne undgå dem alle, bruges hele puljen i stedet for at
-fejle. Ren server-side, in-memory pr. spiller — kan ikke omgås fra
-klienten, og nulstilles naturligt ved disconnect.
+Spilleren har på et givent tidspunkt kun ÉT gyldigt opgave-mål
+(`server/tasks.lua`, `CurrentTarget[identifier]`) — ikke, som tidligere,
+alle et sites punkter samtidig. Markøren og `[E]`-interaktionen vises
+derfor kun ved dette ene punkt (`client/tasks.lua`,
+`mm_sf:client:setTaskTarget`), og serveren VERIFICERER selv (native
+koordinater, `TASK_INTERACT_DISTANCE`) at spilleren rent faktisk står der,
+før en opgave-session overhovedet kan startes — klienten kan ikke selv
+postulere at være "tæt nok på".
+
+Efter hver gennemført opgave udpeger `AssignNextTarget` et nyt mål, og
+udelukker (jf. `Config.Samfundstjeneste.AntiRepeat.avoidLastPoints`,
+standard: 2) de senest brugte arbejdspunkter/task-typer — spilleren skal
+altså reelt igennem 2 andre punkter, før et allerede besøgt punkt kan
+komme igen. Er der for få unikke punkter til at undgå dem alle, bruges
+hele puljen i stedet for at fejle. Ren server-side, in-memory pr. spiller.
+
+*(Tidligere iteration: alle punkter var aktive samtidig og serverens
+punktvalg var ren bogføring uden positionstjek — det gjorde reelt
+anti-repeat-valget dekorativt, da spilleren aldrig behøvede stå ved det
+"valgte" punkt for at gennemføre. Rettet ved at gøre målet ét ad gangen
+og server-verificeret.)*
 
 ## TextUI og "1 opgave tilbage"
 
-`[E] Udfør opgave`-prompten (`lib.showTextUI`) vises kun når spilleren har
-2 eller flere aktive opgaver tilbage (`client/tasks.lua`,
-`MIN_TASKS_FOR_PROMPT`). Ved præcis 1 tilbage undertrykkes selve
-tekstprompten bevidst — markøren i verden og selve `[E]`-interaktionen
-virker uændret, kun tekst-overlayet skjules, for at undgå det tidligere
-flakkende forløb i overgangen til `CompleteCommunityService`. Klienten
-kender sit eget opgavetal via `PlayerTaskState.activeTasks`
-(`client/main.lua`/`client/service.lua`) — udelukkende til UI-visning,
-aldrig som grundlag for om en opgave rent faktisk godkendes.
+`[E] Udfør opgave`-prompten (`lib.showTextUI`, position `bottom-center`)
+vises kun når spilleren har 2 eller flere aktive opgaver tilbage
+(`client/tasks.lua`, `MIN_TASKS_FOR_PROMPT`). Ved præcis 1 tilbage
+undertrykkes selve tekstprompten bevidst — markøren i verden og selve
+`[E]`-interaktionen virker uændret, kun tekst-overlayet skjules, for at
+undgå det tidligere flakkende forløb i overgangen til
+`CompleteCommunityService`. Klienten kender sit eget opgavetal via
+`PlayerTaskState.activeTasks` (`client/main.lua`/`client/service.lua`) —
+udelukkende til UI-visning, aldrig som grundlag for om en opgave rent
+faktisk godkendes.
 
 ## Combat-restriktion under aktiv tjeneste
 

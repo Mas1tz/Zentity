@@ -3,6 +3,16 @@
     animation) genimplementeret oven på det server-autoritative
     session-system i server/tasks.lua. Klienten viser og spiller — den
     bestemmer ALDRIG selv om en opgave er "gennemført".
+
+    VIGTIGT (rettet AFK-farming-hul): tidligere blev ALLE et sites
+    opgavepunkter vist/interagerbare på samme tid, og serveren tjekkede
+    aldrig hvor spilleren rent faktisk stod ved completion - man kunne
+    derfor blive stående ét sted og spamme [E]. Nu får klienten ét
+    server-udpeget "mål" ad gangen (mm_sf:client:setTaskTarget), og
+    serveren verificerer selv afstanden til DET punkt, før en session
+    overhovedet startes (se server/tasks.lua). Efter hver gennemført
+    opgave udpeger serveren et NYT mål (jf. Config.AntiRepeat), så
+    spilleren reelt skal bevæge sig rundt mellem punkterne.
 ]]
 
 local INTERACT_DISTANCE = 1.5
@@ -21,41 +31,14 @@ local function CanShowPrompt()
     return (PlayerTaskState and PlayerTaskState.activeTasks or 0) >= MIN_TASKS_FOR_PROMPT
 end
 
--- Alle punkter for de aktiverede tasks på det site spilleren er sendt til.
--- Bruges BÅDE til at tegne markører ved ALLE opgavepunkter (ikke kun det
--- nærmeste) og til selve interaktionstjekket.
-local function GetSiteTaskPoints()
-    if not Service.active or not Service.siteKey then return nil end
+-- Det ene, aktuelle mål udpeget af serveren. nil indtil serveren har sendt
+-- et via mm_sf:client:setTaskTarget (sker automatisk når tjenesten
+-- starter, og igen efter hver gennemført opgave).
+local currentTarget = nil
 
-    local site = Config.Samfundstjeneste.Sites[Service.siteKey]
-    if not site then return nil end
-
-    local points = {}
-    for _, taskKey in ipairs(site.tasks) do
-        local taskDef = Config.Samfundstjeneste.Tasks[taskKey]
-        if taskDef and taskDef.enabled then
-            for _, point in ipairs(taskDef.points) do
-                points[#points + 1] = point
-            end
-        end
-    end
-
-    return points
-end
-
-local function GetNearestPoint(points, playerCoords, maxDist)
-    local nearest, nearestDist = nil, maxDist
-
-    for _, point in ipairs(points) do
-        local dist = #(playerCoords - point)
-        if dist < nearestDist then
-            nearest = point
-            nearestDist = dist
-        end
-    end
-
-    return nearest
-end
+RegisterNetEvent('mm_sf:client:setTaskTarget', function(target)
+    currentTarget = target
+end)
 
 local function PickAnimationCommand(animation)
     if animation.type ~= 'emote' then return nil end
@@ -124,50 +107,39 @@ CreateThread(function()
     while true do
         local wait = 500
 
-        if Service.active then
+        if Service.active and currentTarget and currentTarget.point then
             wait = 0
-            local points = GetSiteTaskPoints()
+            local marker = Config.Samfundstjeneste.Marker
+            local point = currentTarget.point
+            local playerCoords = GetEntityCoords(PlayerPedId())
+            local distance = #(playerCoords - point)
 
-            if points and #points > 0 then
-                local marker = Config.Samfundstjeneste.Marker
-                local playerCoords = GetEntityCoords(PlayerPedId())
+            if distance < marker.drawDistance then
+                DrawMarker(marker.type, point.x, point.y, point.z + marker.heightOffset, 0, 0, 0, 0, 0, 0,
+                    marker.size.x, marker.size.y, marker.size.z,
+                    marker.color.r, marker.color.g, marker.color.b, marker.color.a, false, true, 2, false, nil, nil, false)
+            end
 
-                -- Tegn en markør ved ALLE aktiverede opgavepunkter på sitet
-                -- (inden for drawDistance), ikke kun det spilleren står ved.
-                for _, point in ipairs(points) do
-                    if #(playerCoords - point) < marker.drawDistance then
-                        DrawMarker(marker.type, point.x, point.y, point.z + marker.heightOffset, 0, 0, 0, 0, 0, 0,
-                            marker.size.x, marker.size.y, marker.size.z,
-                            marker.color.r, marker.color.g, marker.color.b, marker.color.a, false, true, 2, false, nil, nil, false)
-                    end
-                end
-
-                local nearest = GetNearestPoint(points, playerCoords, INTERACT_DISTANCE)
-
-                if nearest then
-                    -- Prompten vises kun ved 2+ resterende opgaver (se
-                    -- MIN_TASKS_FOR_PROMPT) - men selve interaktionen
-                    -- (markør + [E]) virker uændret uanset antal tilbage.
-                    if CanShowPrompt() then
-                        if not shownPrompt then
-                            shownPrompt = true
-                            lib.showTextUI('[E] Udfør opgave', { position = 'top-center' })
-                        end
-                    elseif shownPrompt then
-                        shownPrompt = false
-                        lib.hideTextUI()
-                    end
-
-                    if not busy and IsControlJustPressed(0, 38) then -- E
-                        if shownPrompt then
-                            lib.hideTextUI()
-                            shownPrompt = false
-                        end
-                        RunTask()
+            if distance <= INTERACT_DISTANCE then
+                -- Prompten vises kun ved 2+ resterende opgaver (se
+                -- MIN_TASKS_FOR_PROMPT) - men selve interaktionen
+                -- (markør + [E]) virker uændret uanset antal tilbage.
+                if CanShowPrompt() then
+                    if not shownPrompt then
+                        shownPrompt = true
+                        lib.showTextUI('[E] Udfør opgave', { position = 'bottom-center' })
                     end
                 elseif shownPrompt then
                     shownPrompt = false
                     lib.hideTextUI()
+                end
+
+                if not busy and IsControlJustPressed(0, 38) then -- E
+                    if shownPrompt then
+                        lib.hideTextUI()
+                        shownPrompt = false
+                    end
+                    RunTask()
                 end
             elseif shownPrompt then
                 shownPrompt = false
@@ -195,4 +167,5 @@ AddEventHandler('mm_sf:client:stopService', function()
     lib.hideTextUI()
     StopTaskAnimation()
     busy = false
+    currentTarget = nil
 end)

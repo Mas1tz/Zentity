@@ -16,6 +16,21 @@ Tasks = {}
 
 local ActiveSessions = {} -- [identifier] = { sessionId, taskKey, siteKey, startedAt, minDuration }
 
+-- Det ene, aktuelle opgave-mål pr. spiller. Erstatter den tidligere model
+-- hvor klienten kunne interagere med ETHVERT punkt på sitet og serveren
+-- trak et helt urelateret tilfældigt punkt ved sessionsstart - det gjorde
+-- reelt anti-repeat-valget dekorativt, da spilleren aldrig behøvede stå
+-- ved det punkt serveren "valgte". Nu SKAL spilleren fysisk være ved
+-- dette specifikke punkt (verificeret server-side, se startTaskSession),
+-- og et nyt udpeges (jf. Config.AntiRepeat) efter hver gennemført opgave.
+local CurrentTarget = {} -- [identifier] = { taskKey, point, siteKey }
+
+-- Hvor tæt (meter) spilleren skal være på CurrentTarget[identifier].point
+-- for at en task-session overhovedet kan startes. Lidt mere rummelig end
+-- klientens egen INTERACT_DISTANCE (1.5m) for at tolerere almindelig
+-- netværks-jitter uden at åbne for reel afstands-snyd.
+local TASK_INTERACT_DISTANCE = 3.0
+
 -- ------------------------------------------------------------
 -- ANTI-REPEAT
 -- Husker de senest brugte arbejdspunkter (og task-typer) pr. spiller, så
@@ -67,6 +82,60 @@ local function RememberRecent(recentTable, identifier, chosen, maxRecent)
 end
 
 -- ------------------------------------------------------------
+-- Udpeger ÉT nyt opgave-mål (task-type + punkt) til spilleren, undgår de
+-- senest brugte (jf. Config.AntiRepeat), og sender det til klienten så
+-- markøren flytter sig dertil. Kaldes når tjenesten starter, og igen
+-- efter hver gennemført opgave - ALDRIG ved selve E-tryk/sessionsstart,
+-- så det faktiske mål er kendt (og kan positions-tjekkes) FØR spilleren
+-- overhovedet kan forsøge at starte en opgave.
+-- ------------------------------------------------------------
+local function AssignNextTarget(identifier)
+    local data = Players[identifier]
+    if not data or not data.inService then
+        CurrentTarget[identifier] = nil
+        return
+    end
+
+    local site = Config.Samfundstjeneste.Sites[data.inService]
+    if not site then
+        CurrentTarget[identifier] = nil
+        return
+    end
+
+    local enabledTasks = {}
+    for _, taskKey in ipairs(site.tasks) do
+        local taskDef = Config.Samfundstjeneste.Tasks[taskKey]
+        if taskDef and taskDef.enabled then
+            enabledTasks[#enabledTasks + 1] = taskKey
+        end
+    end
+
+    if #enabledTasks == 0 then
+        CurrentTarget[identifier] = nil
+        return
+    end
+
+    local avoidCount = (Config.Samfundstjeneste.AntiRepeat and Config.Samfundstjeneste.AntiRepeat.avoidLastPoints) or 0
+
+    local taskKey = PickAvoidingRecent(enabledTasks, RecentTaskTypes[identifier] or {}, avoidCount)
+    local taskDef = Config.Samfundstjeneste.Tasks[taskKey]
+    local point = PickAvoidingRecent(taskDef.points, RecentPoints[identifier] or {}, avoidCount)
+
+    RememberRecent(RecentTaskTypes, identifier, taskKey, avoidCount)
+    RememberRecent(RecentPoints, identifier, point, avoidCount)
+
+    CurrentTarget[identifier] = { taskKey = taskKey, point = point, siteKey = data.inService }
+
+    if data.source then
+        TriggerClientEvent('mm_sf:client:setTaskTarget', data.source, {
+            taskKey = taskKey,
+            point = point,
+            label = taskDef.label,
+        })
+    end
+end
+
+-- ------------------------------------------------------------
 -- INTERNT: anvend en delta (positiv eller negativ) på active_tasks,
 -- clamp til >= 0, og hold total_assigned i sync når det er en tildeling.
 -- ------------------------------------------------------------
@@ -115,6 +184,7 @@ local function CompleteCommunityService(identifier, options)
 
     data.inService = false
     ActiveSessions[identifier] = nil
+    CurrentTarget[identifier] = nil
     RecentPoints[identifier] = nil
     RecentTaskTypes[identifier] = nil
 
@@ -299,19 +369,11 @@ function Tasks.StartService(source)
     -- TextUI-regel ved 1 opgave tilbage.
     TriggerClientEvent('mm_sf:client:startService', source, siteKey, site.sendCoords, data.active_tasks)
 
+    -- Udpeger det første opgave-mål med det samme, så der altid er ét
+    -- aktivt mål fra det øjeblik spilleren ankommer til sitet.
+    AssignNextTarget(identifier)
+
     return true
-end
-
-function Tasks.StopService(identifier)
-    local data = Players[identifier]
-    if not data then return end
-
-    data.inService = false
-    ActiveSessions[identifier] = nil
-
-    if data.source then
-        TriggerClientEvent('mm_sf:client:stopService', data.source)
-    end
 end
 
 -- ------------------------------------------------------------
@@ -328,31 +390,26 @@ lib.callback.register('mm_sf:server:startTaskSession', function(source)
     if data.active_tasks <= 0 then return false end
     if ActiveSessions[identifier] then return false end -- allerede i gang med én
 
-    local site = Config.Samfundstjeneste.Sites[data.inService]
-    if not site then return false end
+    local target = CurrentTarget[identifier]
+    if not target or target.siteKey ~= data.inService then return false end
 
-    local enabledTasks = {}
-    for _, taskKey in ipairs(site.tasks) do
-        local taskDef = Config.Samfundstjeneste.Tasks[taskKey]
-        if taskDef and taskDef.enabled then
-            enabledTasks[#enabledTasks + 1] = taskKey
-        end
-    end
-    if #enabledTasks == 0 then return false end
+    local taskDef = Config.Samfundstjeneste.Tasks[target.taskKey]
+    if not taskDef or not taskDef.enabled then return false end
 
-    local avoidCount = (Config.Samfundstjeneste.AntiRepeat and Config.Samfundstjeneste.AntiRepeat.avoidLastPoints) or 0
+    -- Server-side positionstjek: klienten kan ALDRIG selv afgøre at den er
+    -- "tæt nok på" målet - vi læser selv native koordinater og verificerer.
+    -- Fail-closed hvis pedet ikke kan læses.
+    local ped = GetPlayerPed(source)
+    if ped == 0 then return false end
 
-    local taskKey = PickAvoidingRecent(enabledTasks, RecentTaskTypes[identifier] or {}, avoidCount)
-    local taskDef = Config.Samfundstjeneste.Tasks[taskKey]
-    local point = PickAvoidingRecent(taskDef.points, RecentPoints[identifier] or {}, avoidCount)
+    local coords = GetEntityCoords(ped)
+    if #(coords - target.point) > TASK_INTERACT_DISTANCE then return false end
+
     local duration = math.random(taskDef.duration.min, taskDef.duration.max)
-
-    RememberRecent(RecentTaskTypes, identifier, taskKey, avoidCount)
-    RememberRecent(RecentPoints, identifier, point, avoidCount)
 
     ActiveSessions[identifier] = {
         sessionId = ('%s-%d-%d'):format(identifier, GetGameTimer(), math.random(100000, 999999)),
-        taskKey = taskKey,
+        taskKey = target.taskKey,
         siteKey = data.inService,
         startedAt = GetGameTimer(),
         minDuration = duration,
@@ -360,12 +417,12 @@ lib.callback.register('mm_sf:server:startTaskSession', function(source)
 
     return {
         sessionId = ActiveSessions[identifier].sessionId,
-        taskKey = taskKey,
+        taskKey = target.taskKey,
         label = taskDef.label,
         description = taskDef.description,
         animation = taskDef.animation,
         duration = duration,
-        point = point,
+        point = target.point,
     }
 end)
 
@@ -404,6 +461,11 @@ lib.callback.register('mm_sf:server:completeTaskSession', function(source)
     PushPlayerUpdate(identifier)
 
     if data.active_tasks > 0 then
+        -- Udpeg NÆSTE mål med det samme, jf. Config.AntiRepeat - dette er
+        -- hvad der reelt tvinger spilleren videre til en anden placering
+        -- i stedet for at kunne blive stående og spamme samme punkt.
+        AssignNextTarget(identifier)
+
         -- Kun relevant at vise "X opgaver tilbage" når der faktisk ER en
         -- resterende opgave — er dette den sidste, viser
         -- CompleteCommunityService en samlet, mere præcis besked i stedet
@@ -482,6 +544,7 @@ AddEventHandler('playerDropped', function()
     local identifier = GetIdentifier(source)
     if identifier then
         ActiveSessions[identifier] = nil
+        CurrentTarget[identifier] = nil
         RecentPoints[identifier] = nil
         RecentTaskTypes[identifier] = nil
     end
