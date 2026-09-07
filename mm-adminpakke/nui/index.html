@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>mm-adminpakke V2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css"/>
+    <link rel="stylesheet" href="css/components.css"/>
+</head>
+<body>
+
+<div id="app" class="hidden">
+
+    <div class="panel" id="mainPanel">
+
+        <!-- HEADER -->
+        <header class="panel-header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <span class="header-title">MM ADMINPAKKE</span>
+                <div class="header-badge">V2</div>
+                <div class="header-stats">
+                    <span id="headerItemCount" class="stat-chip">0 items</span>
+                    <span id="headerPlayerCount" class="stat-chip">0 online</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="icon-btn" id="missingBtn" title="Manglende billeder" data-tooltip="Manglende billeder">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                </button>
+                <button class="icon-btn close-btn" id="closeBtn" title="Luk [ESC]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="panel-body">
+
+            <!-- VENSTRE KOLONNE -->
+            <div class="col-left">
+
+                <div class="section">
+                    <div class="section-header">
+                        <span class="section-icon">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </span>
+                        SPILLERE
+                        <button class="refresh-btn" id="refreshPlayersBtn" title="Opdater spillerliste">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="selected-player-bar" id="selectedPlayerBar">
+                        <img class="player-avatar" id="selectedPlayerAvatar" src="" alt=""/>
+                        <div class="selected-player-info">
+                            <div class="selected-player-name" id="selectedPlayerName"></div>
+                            <div class="selected-player-meta" id="selectedPlayerMeta"></div>
+                        </div>
+                        <button class="selected-player-clear" id="selectedPlayerClear" title="Fjern valgt spiller">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+
+                    <div class="player-search-wrap">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="player-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="playerSearch" class="player-search" placeholder="Søg spiller (navn eller ID)..."/>
+                    </div>
+                    <div class="player-list" id="playerList">
+                        <div class="empty-state">Ingen spillere online</div>
+                    </div>
+                </div>
+
+                <div class="section section-basket">
+                    <div class="section-header">
+                        <span class="section-icon">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                        </span>
+                        KURV
+                        <span class="basket-count" id="basketCount">0</span>
+                        <button class="icon-btn-sm" id="clearBasketBtn" title="Ryd kurv">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        </button>
+                    </div>
+                    <div class="basket-list" id="basketList">
+                        <div class="empty-state">Kurven er tom</div>
+                    </div>
+                    <button class="send-btn" id="sendBtn" disabled>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        GIV ITEMS
+                    </button>
+                </div>
+
+            </div><!-- /col-left -->
+
+            <!-- HØJRE KOLONNE -->
+            <div class="col-right">
+
+                <div class="search-bar">
+                    <div class="search-input-wrap">
+                        <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="searchInput" class="search-input" placeholder="Søg efter items eller våben..." autocomplete="off" spellcheck="false"/>
+                        <button class="clear-search hidden" id="clearSearch">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                    <div class="primary-tabs" id="primaryTabs">
+                        <button class="tab-btn active" data-tab="all">Alle</button>
+                        <button class="tab-btn" data-tab="items">Items</button>
+                        <button class="tab-btn" data-tab="weapons">Våben</button>
+                        <button class="tab-btn" data-tab="favorites">★ Favoritter</button>
+                        <button class="tab-btn" data-tab="recent">Seneste</button>
+                        <button class="tab-btn" data-tab="blacklisted">🚫 Sortlistet</button>
+                        <button class="tab-btn" data-tab="missing">📦 Mangler billede<span class="tab-count hidden" id="missingTabCount">0</span></button>
+                    </div>
+                </div>
+
+                <div class="category-bar-wrap">
+                    <button class="cat-scroll-btn cat-scroll-left hidden" id="catScrollLeft">&#8249;</button>
+                    <div class="category-bar" id="categoryBar"></div>
+                    <button class="cat-scroll-btn cat-scroll-right hidden" id="catScrollRight">&#8250;</button>
+                </div>
+
+                <div class="items-grid" id="itemsGrid">
+                    <div class="loading-state" id="loadingState">
+                        <div class="spinner"></div>
+                        <span>Indlæser items...</span>
+                    </div>
+                </div>
+
+                <div class="pagination" id="pagination">
+                    <button class="page-btn" id="prevPage">&#8249;</button>
+                    <div class="page-numbers" id="pageNumbers"></div>
+                    <button class="page-btn" id="nextPage">&#8250;</button>
+                    <span class="page-info" id="pageInfo"></span>
+                </div>
+
+            </div><!-- /col-right -->
+
+        </div><!-- /panel-body -->
+
+    </div><!-- /panel -->
+
+    <!-- ITEM PREVIEW TOOLTIP -->
+    <div class="item-preview hidden" id="itemPreview">
+        <div class="preview-img-wrap">
+            <img class="preview-img" id="previewImg" src="" alt=""/>
+            <div class="preview-blacklist-badge hidden" id="previewBlacklistBadge">SORTLISTET</div>
+        </div>
+        <div class="preview-info">
+            <div class="preview-name" id="previewName"></div>
+            <div class="preview-label" id="previewLabel"></div>
+            <div class="preview-cat" id="previewCat"></div>
+            <div class="preview-weight" id="previewWeight"></div>
+            <div class="preview-desc" id="previewDesc"></div>
+            <div class="preview-blacklist-msg hidden" id="previewBlacklistMsg">🚫 Dette item er sortlistet.</div>
+        </div>
+    </div>
+
+    <!-- TILFØJ ITEM MODAL -->
+    <div class="modal-overlay hidden" id="addModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-item-img-wrap">
+                    <img class="modal-item-img" id="modalImg" src="" alt=""/>
+                </div>
+                <div class="modal-item-info">
+                    <div class="modal-item-name" id="modalName"></div>
+                    <div class="modal-item-label" id="modalLabel"></div>
+                    <div class="modal-item-cat" id="modalCat"></div>
+                </div>
+                <button class="icon-btn modal-close" id="modalClose">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <label class="modal-label-text">ANTAL</label>
+                <div class="amount-controls">
+                    <div class="amount-minus-group">
+                        <button class="amount-btn minus" data-action="decrease" data-by="1000">-1000</button>
+                        <button class="amount-btn minus" data-action="decrease" data-by="100">-100</button>
+                        <button class="amount-btn minus" data-action="decrease" data-by="10">-10</button>
+                    </div>
+                    <input type="number" class="amount-input" id="amountInput" value="1" min="1"/>
+                    <div class="amount-plus-group">
+                        <button class="amount-btn plus" data-action="increase" data-by="10">+10</button>
+                        <button class="amount-btn plus" data-action="increase" data-by="100">+100</button>
+                        <button class="amount-btn plus" data-action="increase" data-by="1000">+1000</button>
+                    </div>
+                </div>
+                <div class="amount-presets">
+                    <button class="preset-btn" data-val="1">1</button>
+                    <button class="preset-btn" data-val="10">10</button>
+                    <button class="preset-btn" data-val="50">50</button>
+                    <button class="preset-btn" data-val="100">100</button>
+                    <button class="preset-btn" data-val="500">500</button>
+                    <button class="preset-btn max-btn" id="maxBtn">MAX</button>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-cancel-btn" id="modalCancel">ANNULLER</button>
+                    <button class="modal-add-btn" id="modalAdd">TILFØJ TIL KURV</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MISSING IMAGES MANAGER -->
+    <div class="modal-overlay hidden" id="missingModal">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <div class="modal-item-info">
+                    <div class="modal-item-name">Manglende billeder</div>
+                    <div class="modal-item-label">Oversigt over items hvor billedet ikke kunne indlæses</div>
+                </div>
+                <button class="icon-btn modal-close" id="missingModalClose">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="missing-modal-body">
+                <div class="missing-stats">
+                    <div class="missing-stat">
+                        <div class="missing-stat-value" id="missingStatTotal">0</div>
+                        <div class="missing-stat-label">ITEMS I ALT</div>
+                    </div>
+                    <div class="missing-stat ok">
+                        <div class="missing-stat-value" id="missingStatOk">0</div>
+                        <div class="missing-stat-label">OK</div>
+                    </div>
+                    <div class="missing-stat bad">
+                        <div class="missing-stat-value" id="missingStatBad">0</div>
+                        <div class="missing-stat-label">MANGLER</div>
+                    </div>
+                </div>
+                <table class="missing-table">
+                    <thead>
+                        <tr><th>Item</th><th>Label</th><th>Billedsti</th><th>Status</th></tr>
+                    </thead>
+                    <tbody id="missingTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SPILLER-PROFIL MODAL -->
+    <div class="modal-overlay hidden" id="profileModal">
+        <div class="modal profile-modal">
+            <div class="profile-header">
+                <img class="profile-avatar" id="profileAvatar" src="" alt=""/>
+                <div class="profile-name" id="profileName"></div>
+                <div class="profile-steam" id="profileSteamName"></div>
+                <button class="icon-btn modal-close" id="profileModalClose" style="position:absolute;top:8px;right:8px;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="profile-body">
+                <div class="profile-row"><span class="profile-row-label">Server ID</span><span class="profile-row-value" id="profileId"></span></div>
+                <div class="profile-row"><span class="profile-row-label">Job</span><span class="profile-row-value" id="profileJob"></span></div>
+                <div class="profile-row"><span class="profile-row-label">Ping</span><span class="profile-row-value" id="profilePing"></span></div>
+                <div class="profile-row"><span class="profile-row-label">Identifier</span><span class="profile-row-value" id="profileIdentifier"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+</div><!-- /app -->
+
+<script src="js/components.js"></script>
+<script src="js/players.js"></script>
+<script src="js/items.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
