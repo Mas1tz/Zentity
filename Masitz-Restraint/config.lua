@@ -160,4 +160,5 @@ Config.Text = {
     alreadyRestrained      = 'Personen er allerede bundet.',
     notRestrained          = 'Personen er ikke bundet.',
     actionTooFast          = 'Vent lidt før du prøver igen.',
+    inVehicle              = 'Det kan ikke bruges mens nogen sidder i et køretøj.',
 }

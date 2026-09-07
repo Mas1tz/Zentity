@@ -251,6 +251,7 @@ lib.registerRadial({
 | 16 | Klient forsøger at forfalske `syncState` til sig selv for at "føle" sig ikke-restrained visuelt | Muligt kosmetisk (se §12 Known limitations), men giver INGEN reel fordel da alle handlinger stadig valideres server-side ud fra den ægte `states[source]` |
 | 17 | To spillere forsøger samtidig at unrestraine og carry samme target | Begge går gennem samme `Pending`/state-tjek-mønster; carry/drag er atomisk (ingen yield-points) og læser altid den friskeste `tState.restrained`/`carriedBy` |
 | 18 | Klient sender non-numeriske eller manipulerede argumenter til events | Alle handlers tjekker `type(target) ~= 'number'` osv. og returnerer tidligt uden effekt |
+| 19 | Spiller bruger carry/drag/restrain på en spiller der sidder i et køretøj for at rive dem ud af sædet (fx en passager der "bærer" føreren for at overtage bilen) | `IsInVehicle()` tjekker server-side (native `GetVehiclePedIsIn`, fail-closed) at INGEN af parterne sidder i et køretøj, før `DoRestrain`/`DoStartCarry`/`DoStartDrag` udføres |
 
 ### Fejl fundet under egen (§1) selv-audit
 - Vildledende kommentar om "beskyttelse mod race condition" i `DoRestrain`, hvor `Pending[target]` allerede gjorde det umuligt på det tidspunkt — omformuleret til ærligt at beskrive det som en billig fremtidssikrings-invariant, ikke en reel nutidig race.
@@ -262,6 +263,9 @@ lib.registerRadial({
 ### Fejl fundet under uafhængig (§2) selv-audit ("som om jeg ikke skrev det")
 - Restrain af en spiller der SELV aktivt bar/trak en tredje part efterlod dem i en modstridende animations-tilstand (tvungen "restrained idle" + carrier/dragger-animation samtidig). Løst ved at `DoRestrain`'s succes-sti nu automatisk stopper target's EGEN aktive carry/drag som handlende part (ikke selve det at blive båret/trukket AF andre — det er stadig fint).
 - Klientens restraint-loop udelukkede kun tvungen animation mens `carriedBy` var sat, men manglede den tilsvarende udelukkelse for `draggedBy` — samme problemklasse for den anden kombination. Rettet ved at udvide betingelsen til også at tjekke `draggedBy`.
+
+### Fejl fundet efter levering (produktionsrapport)
+- **Alvorlig:** `DoStartCarry`/`DoStartDrag` tjekkede ikke om nogen af parterne sad i et køretøj. Da `carryTarget`-handleren på klienten kalder `ClearPedTasks()` på target FØR de attaches til bæreren, og `ClearPedTasks()` tvinger en siddende ped ud af sit sæde, kunne enhver spiller inden for carry-afstand (3m som standard - fx en passager der lige er hoppet ind) "bære" føreren og dermed rive dem ud af bilen og selv overtage sædet, uden at føreren behøvede at være restrained først (`RequireRestraintForCarry = false` er standard). Rettet ved at tilføje en server-side, fail-closed `IsInVehicle()`-tjek (baseret på native `GetVehiclePedIsIn`) i `DoRestrain`, `DoStartCarry` og `DoStartDrag`, der blokerer handlingen hvis ENTEN initiativtager eller target sidder i et køretøj.
 
 ---
 

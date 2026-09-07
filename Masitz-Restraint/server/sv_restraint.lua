@@ -111,6 +111,20 @@ local function IsWithinDistance(srcA, srcB, maxDist)
     return #(a - b) <= maxDist
 end
 
+-- Restrain/carry/drag giver ingen mening (og er direkte farligt - se
+-- README "Kendte sikkerhedsrettelser") mens en af parterne sidder i et
+-- køretøj: ClearPedTasks() på en siddende ped tvinger dem ud af sædet,
+-- hvilket ellers kan bruges til at "smide" en fører ud af sin egen bil
+-- og overtage sædet. Fail-closed: kan vi ikke læse ped/vehicle-state,
+-- antager vi at spilleren SIDDER i et køretøj (blokerer handlingen).
+local function IsInVehicle(src)
+    local ok, ped = pcall(GetPlayerPed, src)
+    if not ok or not ped or ped == 0 then return true end
+    local ok2, vehicle = pcall(GetVehiclePedIsIn, ped, false)
+    if not ok2 then return true end
+    return vehicle ~= 0
+end
+
 -- ------------------------------------------------------------------
 --  OX_INVENTORY WRAPPERS - altid pcall'et, altid fail-closed
 -- ------------------------------------------------------------------
@@ -190,6 +204,7 @@ local REASON_TEXT = {
     cannot_carry          = Config.Text.cannotCarry,
     drag_requires_restraint = Config.Text.dragRequiresRestraint,
     busy                  = 'Personen er optaget lige nu.',
+    in_vehicle            = Config.Text.inVehicle,
 }
 
 local function NotifyActionFailed(src, reason)
@@ -282,6 +297,10 @@ local function DoStartCarry(initiator, target)
     if iState.carrying or iState.dragging then return false, 'busy' end
     if tState.carriedBy or tState.draggedBy or tState.carrying or tState.dragging then return false, 'busy' end
 
+    -- Ingen af parterne må sidde i et køretøj (se IsInVehicle) - ellers kan
+    -- carry bruges til at rive en fører/passager ud af deres eget sæde.
+    if IsInVehicle(initiator) or IsInVehicle(target) then return false, 'in_vehicle' end
+
     local rtype = tState.restraintType and Config.Restraints[tState.restraintType] or nil
     if C.RequireRestraintForCarry and not tState.restrained then
         return false, 'not_restrained'
@@ -316,6 +335,10 @@ local function DoStartDrag(initiator, target)
     if iState.restrained then return false, 'cannot_carry' end
     if iState.carrying or iState.dragging then return false, 'busy' end
     if tState.carriedBy or tState.draggedBy or tState.carrying or tState.dragging then return false, 'busy' end
+
+    -- Se DoStartCarry - samme begrundelse: ingen af parterne må sidde i
+    -- et køretøj.
+    if IsInVehicle(initiator) or IsInVehicle(target) then return false, 'in_vehicle' end
 
     if C.RequireRestraintForDrag and not tState.restrained then
         return false, 'drag_requires_restraint'
@@ -371,6 +394,11 @@ local function DoRestrain(initiator, target, restraintType, isSystem)
 
     local tState = GetOrCreateState(target)
     if tState.restrained then return false, 'already_restrained' end
+
+    -- Giver ikke fysisk mening (og spiller dårligt sammen med den tvungne
+    -- restrained-animation) at lægge en restraint på nogen mens de sidder
+    -- i et køretøj - gælder også system-/export-kald.
+    if IsInVehicle(target) then return false, 'in_vehicle' end
 
     if not isSystem then
         if not IsWithinDistance(initiator, target, C.MaxApplyDistance) then
