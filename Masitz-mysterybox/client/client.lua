@@ -46,13 +46,7 @@ local function buildConversionOptions()
     return options
 end
 
--- ox_inventory kalder et usable items client.export med signaturen
--- (event, item, inventory, slot, data), og kan kalde den for flere
--- events (fx både 'usingItem' og 'usedItem') - vi skal derfor kun
--- reagere på 'usingItem' for ikke at åbne/konvertere to gange pr. brug.
-local function convertMysteryBox(event, _item, _inventory, _slot, _data)
-    if event ~= nil and event ~= 'usingItem' then return end
-
+local function convertMysteryBox(...)
     local conversion = M.Conversion
 
     if not conversion or not conversion.enabled then return end
@@ -103,16 +97,29 @@ exports('convertMysteryBox', convertMysteryBox)
 -- Peg det tilsvarende items.lua-item i ox_inventory på
 -- 'Masitz-mysterybox.use_<boxnøgle>'.
 -- ================================
-for boxKey, box in pairs(M.Boxes) do
-    exports(('use_%s'):format(boxKey), function(event, item, _inventory, slot, _data)
-        -- Se kommentaren ved convertMysteryBox ovenfor: samme
-        -- (event, item, inventory, slot, data)-signatur fra ox_inventory.
-        if event ~= nil and event ~= 'usingItem' then return end
+-- ox_inventory's egen kaldekonvention for et usable item's client.export
+-- varierer på tværs af versioner/forks (nogle sender slot som 2. argument,
+-- andre som 4. argument i et (event, item, inventory, slot, data)-kald,
+-- og nogle sender item-tabellen med et .slot felt i stedet). I stedet for
+-- at gætte på én bestemt rækkefølge, scanner vi alle modtagne argumenter
+-- og bruger det første der reelt er et gyldigt slot-tal.
+local function findSlotArg(...)
+    for i = 1, select('#', ...) do
+        local value = select(i, ...)
 
-        -- slot er den korrekte kilde til slotnummeret. Falder kun
-        -- tilbage til item.slot hvis en anden kaldekonvention bruges
-        -- (fx et script der kalder exporten direkte).
-        slot = slot or (type(item) == 'table' and item.slot)
+        if type(value) == 'number' then
+            return value
+        elseif type(value) == 'table' and type(value.slot) == 'number' then
+            return value.slot
+        end
+    end
+
+    return nil
+end
+
+for boxKey, box in pairs(M.Boxes) do
+    exports(('use_%s'):format(boxKey), function(...)
+        local slot = findSlotArg(...)
 
         notify(box.label or 'Mystery Box', 'Åbner boxen...', 'inform')
         TriggerServerEvent('Masitz-MysteryBox:openBox', boxKey, slot)
