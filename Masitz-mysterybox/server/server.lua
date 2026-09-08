@@ -234,7 +234,7 @@ local function openMysteryBox(src, boxKey, slot)
             return
         end
 
-        local removed = ox_inventory:RemoveItem(src, box.item, 1, slot)
+        local removed = ox_inventory:RemoveItem(src, box.item, 1, nil, slot)
 
         if not removed then
             notify(src, 'Mystery Box', 'Kunne ikke fjerne mystery boxen fra din inventory.', 'error')
