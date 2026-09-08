@@ -1,5 +1,14 @@
 Config = Config or {}
 
+-- ═══════════════════════════════════════════════════════════
+--  DEBUG
+-- ═══════════════════════════════════════════════════════════
+-- Styrer al valgfri debug-output (se Utils.DebugPrint i shared/utils.lua).
+-- Skal være 'false' som standard for et rent txAdmin/server-console ved
+-- normal drift. Sæt til 'true' midlertidigt for at fejlfinde. Reelle
+-- fejl/advarsler (fx databasen ikke klar) printes uanset denne værdi.
+Config.Debug = false
+
 Config.Samfundstjeneste = {}
 
 -- ═══════════════════════════════════════════════════════════

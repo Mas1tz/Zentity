@@ -247,3 +247,33 @@ AddEventHandler('playerDropped', function()
     Players[identifier].source = nil
     Players[identifier] = nil
 end)
+
+-- ------------------------------------------------------------
+-- RESOURCE-GENSTART MED SPILLERE ALLEREDE ONLINE
+-- esx:playerLoaded fyrer kun ved LOGIN — ikke når selve resourcen bliver
+-- genstartet (fx "restart Masitz-samfundstjeneste") mens spillere allerede
+-- er tilsluttet. Uden dette ville en spiller der i forvejen var i aktiv
+-- tjeneste blive stående med en tom server-cache (ingen combat-restriction,
+-- intet anti-escape, ingen automatisk tidsreduktion) indtil de selv
+-- reconnectede — selvom databasen hele tiden korrekt viste deres aktive
+-- opgaver. Databasen er "source of truth": vi genopbygger blot cachen og
+-- genoptager tjenesten for allerede tilsluttede spillere præcis som ved
+-- normalt login (samme GetOrCreatePlayerByIdentifier + TryAutoStart-kald,
+-- samme 3-sekunders forsinkelse så pedet er klar før evt. teleport).
+-- ------------------------------------------------------------
+AddEventHandler('mm_sf:database:ready', function()
+    for _, playerId in ipairs(GetPlayers()) do
+        local numericId = tonumber(playerId)
+        local identifier = GetIdentifier(numericId)
+
+        if identifier and not Players[identifier] then
+            GetOrCreatePlayerByIdentifier(identifier, GetPlayerName(numericId), numericId)
+
+            SetTimeout(3000, function()
+                if Tasks and Tasks.TryAutoStart then
+                    Tasks.TryAutoStart(identifier)
+                end
+            end)
+        end
+    end
+end)

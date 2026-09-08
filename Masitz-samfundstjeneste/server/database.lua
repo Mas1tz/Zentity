@@ -134,7 +134,7 @@ local function OnDatabaseReady()
     EnsureTables()
     DatabaseReady = true
     TriggerEvent('mm_sf:database:ready')
-    print('^2[Masitz-samfundstjeneste]^7 Database klar (tabeller verificeret)')
+    Utils.DebugPrint('Database klar (tabeller verificeret)')
 end
 
 CreateThread(function()

@@ -108,38 +108,50 @@ CreateThread(function()
         local wait = 500
 
         if Service.active and currentTarget and currentTarget.point then
-            wait = 0
             local marker = Config.Samfundstjeneste.Marker
             local point = currentTarget.point
             local playerCoords = GetEntityCoords(PlayerPedId())
             local distance = #(playerCoords - point)
 
             if distance < marker.drawDistance then
+                -- Kun her behøver loopet køre hvert frame - markøren skal
+                -- tegnes hver tick for at være flimmerfri, og det er også
+                -- her E-interaktionen kan blive relevant. Langt fra målet
+                -- (den store majoritet af tiden en spiller bevæger sig
+                -- rundt mellem opgaver) er der intet at tegne eller tjekke,
+                -- så det korte 500ms-interval fra toppen af loopet bruges
+                -- i stedet - jf. kravet om dynamiske waits frem for
+                -- konstant Wait(0).
+                wait = 0
+
                 DrawMarker(marker.type, point.x, point.y, point.z + marker.heightOffset, 0, 0, 0, 0, 0, 0,
                     marker.size.x, marker.size.y, marker.size.z,
                     marker.color.r, marker.color.g, marker.color.b, marker.color.a, false, true, 2, false, nil, nil, false)
-            end
 
-            if distance <= INTERACT_DISTANCE then
-                -- Prompten vises kun ved 2+ resterende opgaver (se
-                -- MIN_TASKS_FOR_PROMPT) - men selve interaktionen
-                -- (markør + [E]) virker uændret uanset antal tilbage.
-                if CanShowPrompt() then
-                    if not shownPrompt then
-                        shownPrompt = true
-                        lib.showTextUI('[E] Udfør opgave', { position = 'bottom-center' })
+                if distance <= INTERACT_DISTANCE then
+                    -- Prompten vises kun ved 2+ resterende opgaver (se
+                    -- MIN_TASKS_FOR_PROMPT) - men selve interaktionen
+                    -- (markør + [E]) virker uændret uanset antal tilbage.
+                    if CanShowPrompt() then
+                        if not shownPrompt then
+                            shownPrompt = true
+                            lib.showTextUI('[E] Udfør opgave', { position = 'bottom-center' })
+                        end
+                    elseif shownPrompt then
+                        shownPrompt = false
+                        lib.hideTextUI()
+                    end
+
+                    if not busy and IsControlJustPressed(0, 38) then -- E
+                        if shownPrompt then
+                            lib.hideTextUI()
+                            shownPrompt = false
+                        end
+                        RunTask()
                     end
                 elseif shownPrompt then
                     shownPrompt = false
                     lib.hideTextUI()
-                end
-
-                if not busy and IsControlJustPressed(0, 38) then -- E
-                    if shownPrompt then
-                        lib.hideTextUI()
-                        shownPrompt = false
-                    end
-                    RunTask()
                 end
             elseif shownPrompt then
                 shownPrompt = false
