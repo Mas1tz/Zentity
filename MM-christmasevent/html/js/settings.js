@@ -19,7 +19,7 @@ var Settings = (function() {
     var STORAGE_KEY = 'mm_christmas_settings_v1';
     var DEFAULTS = {
         theme: 'snow',
-        transparency: 72,
+        transparency: 50,
         uiSize: 0,
         animations: true,
         snow: true,
@@ -72,9 +72,13 @@ var Settings = (function() {
         root.setAttribute('data-snow', current.snow ? 'on' : 'off');
         root.setAttribute('data-reduced-motion', (current.reducedMotion || !current.animations) ? 'true' : 'false');
 
-        var alpha = 0.25 + (current.transparency / 100) * 0.70;
+        // 0 = as see-through as the game stays readable, 100 = solid
+        // panel. Kept well under 1.0 even at the top of the range so
+        // "transparency" never degenerates into an opaque black box -
+        // that's the whole point of the glassmorphism look.
+        var alpha = 0.15 + (current.transparency / 100) * 0.55;
         root.style.setProperty('--panel-alpha', alpha.toFixed(2));
-        root.style.setProperty('--panel-alpha-hi', Math.min(0.95, alpha + 0.08).toFixed(2));
+        root.style.setProperty('--panel-alpha-hi', Math.min(0.85, alpha + 0.10).toFixed(2));
 
         var w = Math.round(bounds.minW + (current.uiSize / 100) * (bounds.maxW - bounds.minW));
         var h = Math.round(bounds.minH + (current.uiSize / 100) * (bounds.maxH - bounds.minH));
