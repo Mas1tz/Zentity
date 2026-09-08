@@ -1,6 +1,18 @@
 Utils = Utils or {}
 
 -- ------------------------------------------------------------
+-- DEBUG
+-- Gated af Config.Debug, så normal drift holder konsollen ren (jf. krav
+-- om intet debug-spam i txAdmin/server-console når Config.Debug = false).
+-- Reelle fejl/advarsler skal fortsat printes direkte med print(), ikke
+-- via denne, da de skal være synlige uanset Config.Debug.
+-- ------------------------------------------------------------
+function Utils.DebugPrint(...)
+    if not Config.Debug then return end
+    print('^5[Masitz-samfundstjeneste:debug]^7', ...)
+end
+
+-- ------------------------------------------------------------
 -- MATH
 -- ------------------------------------------------------------
 function Utils.Clamp(value, min, max)

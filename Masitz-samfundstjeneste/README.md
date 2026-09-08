@@ -162,6 +162,24 @@ Loopet starter/stopper med selve tjenesten og har derfor nul CPU-omkostning
 resten af tiden. Ved tjenestens afslutning gendannes begge natives eksplicit
 med det samme, ikke kun ved at stoppe loopet.
 
+## Debug
+
+`Config.Debug` (standard: `false`) styrer alt valgfrit debug-output via
+`Utils.DebugPrint` i `shared/utils.lua`. Ved normal drift er konsollen ren —
+reelle fejl/advarsler (fx databasen ikke klar) printes uanset denne værdi,
+da de ikke er "spam" men tegn på et konkret problem.
+
+## Resource-genstart mens spillere er online
+
+`esx:playerLoaded` fyrer kun ved LOGIN, ikke ved en ren resource-genstart
+(fx `restart Masitz-samfundstjeneste`) mens spillere allerede er tilsluttet.
+`server/players.lua` lytter derfor også på `mm_sf:database:ready` og
+genopbygger cachen + genoptager tjenesten (samme `GetOrCreatePlayerByIdentifier`
++ `Tasks.TryAutoStart`-kald som ved login) for alle allerede tilsluttede
+spillere — ellers ville en spiller i aktiv tjeneste blive stående uden
+combat-restriction eller anti-escape indtil de selv reconnectede, selvom
+databasen hele tiden korrekt viste deres aktive opgaver.
+
 ## Kendte afgrænsninger
 
 - Nye sites/tasks (koordinater, animationer) tilføjes i `config.lua`, ikke fra
