@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="da" data-theme="snow" data-snow="on" data-reduced-motion="false">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MM Christmas</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/themes.css">
+</head>
+<body>
+
+<div id="toast-wrap"></div>
+
+<div id="app">
+
+  <!-- Loading screen -->
+  <div id="loading">
+    <div class="loading-emoji">🎄</div>
+    <div class="loading-title">MM Christmas Event</div>
+    <div class="loading-subtitle">Loading Christmas Magic...</div>
+    <div class="loading-bar-track"><div class="loading-bar-fill" id="loading-bar-fill"></div></div>
+  </div>
+
+  <div class="theme-motif"></div>
+
+  <div class="snow-bg">
+    <span class="snowflake sf1">❄</span>
+    <span class="snowflake sf2">❅</span>
+    <span class="snowflake sf3">❆</span>
+    <span class="snowflake sf4">❄</span>
+    <span class="snowflake sf5">❅</span>
+    <span class="snowflake sf6">❆</span>
+    <span class="snowflake sf7">❄</span>
+    <span class="snowflake sf8">❅</span>
+    <span class="snowflake sf9">❆</span>
+    <span class="snowflake sf10">❄</span>
+  </div>
+
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-logo">🎄</span>
+        <div class="sidebar-title">Christmas Event</div>
+      </div>
+
+      <div class="sidebar-avatar-row">
+        <img class="sidebar-avatar" id="sb-avatar" src="assets/default-avatar.svg" alt="">
+        <div>
+          <div class="sidebar-avatar-name" id="sb-name">Spiller</div>
+          <div class="sidebar-avatar-sub" id="sb-sub">Level 1</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-item active" data-tab="dashboard" onclick="App.showTab('dashboard')">
+          <span class="nav-icon">🏠</span> Dashboard
+        </div>
+        <div class="nav-item" data-tab="profile" onclick="App.showTab('profile')">
+          <span class="nav-icon">🎅</span> Profil
+        </div>
+        <div class="nav-item" data-tab="level" onclick="App.showTab('level')">
+          <span class="nav-icon">⭐</span> Level
+        </div>
+        <div class="nav-item" data-tab="tasks" onclick="App.showTab('tasks')">
+          <span class="nav-icon">📋</span> Opgaver
+        </div>
+        <div class="nav-item" data-tab="trees" onclick="App.showTab('trees')">
+          <span class="nav-icon">🌲</span> Juletræer
+        </div>
+        <div class="nav-item" data-tab="snowmen" onclick="App.showTab('snowmen')">
+          <span class="nav-icon">⛄</span> Snemænd
+        </div>
+        <div class="nav-item" data-tab="gifts" onclick="App.showTab('gifts')">
+          <span class="nav-icon">🎁</span> Gaver
+        </div>
+        <div class="nav-item" data-tab="shop" onclick="App.showTab('shop')">
+          <span class="nav-icon">🛒</span> Shop
+        </div>
+        <div class="nav-item" data-tab="leaderboard" onclick="App.showTab('leaderboard')">
+          <span class="nav-icon">🏆</span> Leaderboard
+        </div>
+        <div class="nav-item" data-tab="settings" onclick="App.showTab('settings')">
+          <span class="nav-icon">⚙️</span> Indstillinger
+        </div>
+      </nav>
+
+      <div class="sidebar-stats">
+        <div class="mini-stat"><span class="mini-stat-label">Level</span><span class="mini-stat-value" id="sb-level">1</span></div>
+        <div class="mini-stat"><span class="mini-stat-label">Julecoins</span><span class="mini-stat-value" id="sb-coins">0</span></div>
+        <div class="mini-stat"><span class="mini-stat-label">XP</span><span class="mini-stat-value" id="sb-xp">0</span></div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="main-header">
+        <div class="main-header-title" id="main-title">🎄 Dashboard</div>
+        <button class="close-btn" onclick="App.close()" title="Luk">✕</button>
+      </div>
+
+      <div class="main-body">
+
+        <!-- DASHBOARD -->
+        <div class="tab active" id="tab-dashboard">
+          <div class="dash-grid">
+            <div class="dash-card"><div class="dash-card-icon">⭐</div><div class="dash-card-label">Level</div><div class="dash-card-value" id="dash-level">1</div></div>
+            <div class="dash-card"><div class="dash-card-icon">🪙</div><div class="dash-card-label">Julecoins</div><div class="dash-card-value" id="dash-coins">0</div></div>
+            <div class="dash-card"><div class="dash-card-icon">🌲</div><div class="dash-card-label">Træer pyntet</div><div class="dash-card-value" id="dash-trees">0</div></div>
+            <div class="dash-card"><div class="dash-card-icon">⛄</div><div class="dash-card-label">Snemænd bygget</div><div class="dash-card-value" id="dash-snowmen">0</div></div>
+            <div class="dash-card"><div class="dash-card-icon">🎁</div><div class="dash-card-label">Gaver fundet</div><div class="dash-card-value" id="dash-gifts">0</div></div>
+            <div class="dash-card"><div class="dash-card-icon">✨</div><div class="dash-card-label">XP denne level</div><div class="dash-card-value" id="dash-xp" style="font-size:14px;">0</div></div>
+          </div>
+
+          <div class="xp-bar-wrap">
+            <div class="xp-bar-header"><span>XP Fremgang</span><span id="xp-nums">0 / 0 XP</span></div>
+            <div class="xp-bar-bg"><div class="xp-bar-fill" id="xp-fill" style="width:0%;"></div></div>
+          </div>
+
+          <div id="daily-hints-wrap" class="daily-hints" style="display:none;"></div>
+        </div>
+
+        <!-- PROFIL -->
+        <div class="tab" id="tab-profile">
+          <div class="profile-top">
+            <img class="profile-avatar" id="prof-avatar" src="assets/default-avatar.svg" alt="">
+            <div>
+              <div class="profile-name" id="prof-name">Spiller</div>
+              <div class="profile-level" id="prof-level">Level 1</div>
+            </div>
+          </div>
+          <div class="profile-grid">
+            <div class="profile-stat-card"><div class="psc-label">Total XP</div><div class="psc-value" id="prof-xp">0</div></div>
+            <div class="profile-stat-card"><div class="psc-label">Julecoins</div><div class="psc-value" id="prof-coins">0</div></div>
+            <div class="profile-stat-card"><div class="psc-label">Træer pyntet</div><div class="psc-value" id="prof-trees">0</div></div>
+            <div class="profile-stat-card"><div class="psc-label">Snemænd bygget</div><div class="psc-value" id="prof-snowmen">0</div></div>
+            <div class="profile-stat-card"><div class="psc-label">Gaver fundet</div><div class="psc-value" id="prof-gifts">0</div></div>
+            <div class="profile-stat-card"><div class="psc-label">Personlige gaver</div><div class="psc-value" id="prof-pgifts">0</div></div>
+            <div class="profile-stat-card"><div class="psc-label">Distance kørt</div><div class="psc-value" id="prof-driven">0 km</div></div>
+            <div class="profile-stat-card"><div class="psc-label">Distance løbet</div><div class="psc-value" id="prof-run">0 km</div></div>
+          </div>
+        </div>
+
+        <!-- LEVEL -->
+        <div class="tab" id="tab-level">
+          <div class="level-big">
+            <div class="level-number" id="level-big">1</div>
+            <div class="level-label">Nuværende Level</div>
+          </div>
+          <div class="section-title">Level Belønninger</div>
+          <div class="level-rewards-grid" id="level-rewards-wrap"></div>
+        </div>
+
+        <!-- OPGAVER -->
+        <div class="tab" id="tab-tasks">
+          <div class="task-tabs">
+            <button class="task-tab-btn active" data-type="daily"  onclick="App.showTaskTab('daily')">📅 Daglige</button>
+            <button class="task-tab-btn"        data-type="weekly" onclick="App.showTaskTab('weekly')">📆 Ugentlige</button>
+          </div>
+          <div class="task-list" id="tasks-daily"  style="display:flex;"></div>
+          <div class="task-list" id="tasks-weekly" style="display:none;"></div>
+        </div>
+
+        <!-- JULETRÆER -->
+        <div class="tab" id="tab-trees">
+          <div class="stat-list">
+            <div class="stat-card"><div class="stat-card-icon">🌲</div><div><div class="stat-card-label">Træer pyntet i alt</div><div class="stat-card-value" id="trees-count">0</div></div></div>
+          </div>
+          <div class="section-title" style="margin-top:16px;">Pyntede træer</div>
+          <p id="trees-done-list" style="color:var(--t-text-2);font-size:13px;line-height:1.7;">Ingen endnu</p>
+          <div class="info-box">🌲 Find juletræer rundt om i byen og pynt dem.<br>Hvert træ kan kun pyntes én gang.<br><strong>Belønning: +200 XP + 25 Julecoins</strong></div>
+        </div>
+
+        <!-- SNEMÆND -->
+        <div class="tab" id="tab-snowmen">
+          <div class="stat-list">
+            <div class="stat-card"><div class="stat-card-icon">⛄</div><div><div class="stat-card-label">Snemænd bygget i alt</div><div class="stat-card-value" id="snowmen-count">0</div></div></div>
+          </div>
+          <div class="info-box">⛄ Find snemands-pladser rundt om i verden og byg snemænd.<br>Brug <strong style="color:var(--t-text-1)">ox_target</strong> til at starte byggeprocessen. En plads er delt med alle spillere, indtil snemanden smelter.<br><strong>Belønning: +150 XP + 20 Julecoins</strong></div>
+        </div>
+
+        <!-- GAVER -->
+        <div class="tab" id="tab-gifts">
+          <div class="stat-list">
+            <div class="stat-card"><div class="stat-card-icon">🎁</div><div><div class="stat-card-label">Gaver fundet i alt</div><div class="stat-card-value" id="gifts-count">0</div></div></div>
+            <div class="stat-card"><div class="stat-card-icon">🌟</div><div><div class="stat-card-label">Personlige gaver åbnet</div><div class="stat-card-value" id="gifts-personal">0</div></div></div>
+          </div>
+          <div class="info-box">🎁 Find gaver rundt om i byen, eller modtag en personlig gave fra en admin med GPS-route.<br><strong>Verdens-gave: +250 XP + 30 Julecoins</strong> · <strong>Personlig gave: +500 XP + 50 Julecoins + Items</strong></div>
+        </div>
+
+        <!-- SHOP -->
+        <div class="tab" id="tab-shop">
+          <div id="shop-grid" class="shop-grid"></div>
+        </div>
+
+        <!-- LEADERBOARD -->
+        <div class="tab" id="tab-leaderboard">
+          <div class="lb-tabs">
+            <button class="lb-tab-btn active" data-type="level"   onclick="App.showLbTab('level')">⭐ Level</button>
+            <button class="lb-tab-btn"        data-type="xp"      onclick="App.showLbTab('xp')">✨ XP</button>
+            <button class="lb-tab-btn"        data-type="trees"   onclick="App.showLbTab('trees')">🌲 Træer</button>
+            <button class="lb-tab-btn"        data-type="snowmen" onclick="App.showLbTab('snowmen')">⛄ Snemænd</button>
+            <button class="lb-tab-btn"        data-type="gifts"   onclick="App.showLbTab('gifts')">🎁 Gaver</button>
+            <button class="lb-tab-btn"        data-type="coins"   onclick="App.showLbTab('coins')">🪙 Coins</button>
+          </div>
+          <div class="lb-list" id="lb-list"><p class="empty-hint">Indlæser leaderboard...</p></div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div class="tab" id="tab-settings">
+          <div class="settings-group">
+            <div class="section-title">Tema</div>
+            <div class="theme-grid" id="theme-grid"></div>
+          </div>
+
+          <div class="settings-group">
+            <div class="section-title">Udseende</div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Transparency</div>
+                <div class="settings-desc">Hvor gennemsigtige panelerne er</div>
+              </div>
+              <input type="range" min="0" max="100" class="slider" id="set-transparency">
+            </div>
+
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">UI Størrelse</div>
+                <div class="settings-desc">Fra minimum til maksimum vinduesstørrelse</div>
+              </div>
+              <input type="range" min="0" max="100" class="slider" id="set-uisize">
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="section-title">Ydeevne</div>
+
+            <div class="settings-row">
+              <div><div class="settings-label">Animationer</div><div class="settings-desc">Slår UI-overgange og effekter til/fra</div></div>
+              <label class="toggle"><input type="checkbox" id="set-animations"><span class="toggle-track"></span></label>
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-label">Sne</div><div class="settings-desc">Faldende snefnug i baggrunden</div></div>
+              <label class="toggle"><input type="checkbox" id="set-snow"><span class="toggle-track"></span></label>
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-label">Lyde</div><div class="settings-desc">UI-lydeffekter (åbn, køb, level up, m.m.)</div></div>
+              <label class="toggle"><input type="checkbox" id="set-sounds"><span class="toggle-track"></span></label>
+            </div>
+            <div class="settings-row">
+              <div><div class="settings-label">Reduced Motion</div><div class="settings-desc">Minimerer bevægelse mest muligt</div></div>
+              <label class="toggle"><input type="checkbox" id="set-reduced"><span class="toggle-track"></span></label>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/settings.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
