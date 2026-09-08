@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8" />
+  <title>Faktura Tablet</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css?v=3" />
+</head>
+<body>
+  <div id="app" class="hidden">
+    <div class="tablet">
+
+      <!-- SIDEBAR -->
+      <aside class="sidebar">
+        <div class="logo" id="logo-box">
+          <i class="fa-solid fa-file-invoice-dollar"></i>
+        </div>
+        <nav>
+          <button class="side-tab active" data-panel="send">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+            <span>Send</span>
+          </button>
+          <button class="side-tab" data-panel="invoices">
+            <i class="fa-solid fa-receipt"></i>
+            <span>Regninger</span>
+          </button>
+          <button class="side-tab hidden" id="tab-admin-btn" data-panel="admin">
+            <i class="fa-solid fa-sliders"></i>
+            <span>Administrer</span>
+          </button>
+        </nav>
+        <button class="side-close" id="closeBtn"><i class="fa-solid fa-xmark"></i></button>
+      </aside>
+
+      <!-- MAIN -->
+      <div class="main-area">
+        <div class="top-header">
+          <div>
+            <h1 id="page-title">Send Regning</h1>
+            <div class="sub" id="page-sub">Vælg en spiller og de varer/bøder regningen skal indeholde</div>
+          </div>
+          <div class="opacity-control">
+            <i class="fa-solid fa-droplet"></i>
+            <input type="range" id="opacityRange" min="40" max="100" step="5" value="100">
+            <span id="opacityValue">100%</span>
+          </div>
+        </div>
+
+        <!-- SEND REGNING -->
+        <section class="tab-panel active" id="panel-send">
+          <div class="send-grid">
+
+            <!-- Spillere -->
+            <div class="col">
+              <h3>Find Spiller</h3>
+              <input id="searchInput" placeholder="Søg efter ID..." type="text" />
+              <div id="playerList"></div>
+
+              <h3 style="margin-top:16px">Nærved Dig</h3>
+              <div class="visibility-slider">
+                <div class="visibility-label">Søgeradius: <span id="visibilityValue">15</span>m</div>
+                <input type="range" id="visibilityRange" min="5" max="50" step="5" value="15">
+              </div>
+              <div id="nearbyList"></div>
+
+              <div class="player-info-card" id="playerInfoCard">
+                <div class="name" id="playerName">Ingen valgt</div>
+                <div class="meta" id="playerMeta"></div>
+                <div class="summary">
+                  <div class="box warn"><div class="v" id="playerUnpaidCount">0</div><div class="l">Ubetalt</div></div>
+                  <div class="box"><div class="v" id="playerUnpaidTotal">0</div><div class="l">DKK Skyldig</div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Kategorier -->
+            <div class="col" style="border-right:1px solid var(--border)">
+              <h3>Varer / Bøder</h3>
+
+              <div id="categoriesLocked" class="empty-state">
+                <i class="fa-solid fa-lock"></i>
+                Vælg en spiller for at se varer/bøder
+              </div>
+
+              <div id="categoriesUnlockWrap" class="hidden">
+                <button id="toggleCategoriesBtn" class="btn primary" style="width:100%">
+                  <i class="fa-solid fa-folder-open"></i> <span>Åbn Bøder/Varer</span>
+                </button>
+              </div>
+
+              <div id="categoriesContent" class="hidden">
+                <input class="category-search" id="categorySearch" placeholder="Søg..." type="text" />
+                <div id="categoriesList"></div>
+              </div>
+            </div>
+
+            <!-- Valgte varer (live "kurv" mens du sammensætter regningen) -->
+            <div class="col">
+              <h3>Valgte Varer</h3>
+              <div id="cartPreview" class="cart-preview"></div>
+            </div>
+          </div>
+
+          <div class="send-summary">
+            <div class="total">Total: <span id="totalPrice">0</span> DKK</div>
+            <select id="discountSelect"></select>
+            <button id="sendInvoiceBtn" class="btn primary"><i class="fa-solid fa-paper-plane"></i> Send Regning</button>
+          </div>
+        </section>
+
+        <!-- MINE REGNINGER -->
+        <section class="tab-panel" id="panel-invoices">
+          <div id="invoicesFull"></div>
+        </section>
+
+        <!-- ADMINISTRER -->
+        <section class="tab-panel" id="panel-admin">
+          <div class="job-tabs" id="jobTabs"></div>
+          <div id="adminCategories"></div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="js/script.js?v=3"></script>
+</body>
+</html>

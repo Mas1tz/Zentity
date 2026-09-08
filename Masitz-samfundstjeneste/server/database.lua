@@ -79,6 +79,7 @@ local TABLE_DEFINITIONS = {
 -- kolonnen højst sandsynligt eksisteret i forvejen.
 local MIGRATIONS = {
     "ALTER TABLE `sf_players` ADD COLUMN IF NOT EXISTS `total_removed_manual` INT UNSIGNED NOT NULL DEFAULT 0 AFTER `total_completed`;",
+    "ALTER TABLE `sf_players` ADD COLUMN IF NOT EXISTS `steam_avatar_updated_at` DATETIME NULL DEFAULT NULL AFTER `escape_pause_until`;",
 }
 
 local function EnsureTables()
