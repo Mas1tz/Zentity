@@ -143,6 +143,26 @@ M.Boxes = {
         },
     },
 
+    xmas = {
+        item = 'xmas_mysterybox',
+        label = 'Jule Mystery Box',
+        description = 'En festlig jule-mystery box med særlige belønninger.',
+
+        -- Rewards herunder genbruger bevidst items der allerede findes i
+        -- jeres opsætning (samme som "legal" boxen), så boxen virker med
+        -- det samme. Byt dem frit ud med jeres egne julespecifikke items -
+        -- struktur og chance-system er identisk med de andre boxes.
+        rewards = {
+            { type = 'item', name = 'diamond', amount = 30, chance = 50 },
+            { type = 'money', amount = 20000, chance = 50 },
+            { type = 'item', name = 'ticket', amount = 1, chance = 25 },
+        },
+
+        bonusRewards = {
+            { type = 'vehicle_ticket', chance = 2 }, -- 2% chance for et car-ticket oveni
+        },
+    },
+
     -- ------------------------------------------------------------
     -- Eksempel på hvordan en helt ny box tilføjes (kopiér, tilret,
     -- fjern "--" foran linjerne, og husk evt. at tilføje den i
