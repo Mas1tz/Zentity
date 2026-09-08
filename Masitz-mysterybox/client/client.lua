@@ -46,7 +46,13 @@ local function buildConversionOptions()
     return options
 end
 
-local function convertMysteryBox(_data, _slot)
+-- ox_inventory kalder et usable items client.export med signaturen
+-- (event, item, inventory, slot, data), og kan kalde den for flere
+-- events (fx både 'usingItem' og 'usedItem') - vi skal derfor kun
+-- reagere på 'usingItem' for ikke at åbne/konvertere to gange pr. brug.
+local function convertMysteryBox(event, _item, _inventory, _slot, _data)
+    if event ~= nil and event ~= 'usingItem' then return end
+
     local conversion = M.Conversion
 
     if not conversion or not conversion.enabled then return end
@@ -98,7 +104,16 @@ exports('convertMysteryBox', convertMysteryBox)
 -- 'Masitz-mysterybox.use_<boxnøgle>'.
 -- ================================
 for boxKey, box in pairs(M.Boxes) do
-    exports(('use_%s'):format(boxKey), function(_data, slot)
+    exports(('use_%s'):format(boxKey), function(event, item, _inventory, slot, _data)
+        -- Se kommentaren ved convertMysteryBox ovenfor: samme
+        -- (event, item, inventory, slot, data)-signatur fra ox_inventory.
+        if event ~= nil and event ~= 'usingItem' then return end
+
+        -- slot er den korrekte kilde til slotnummeret. Falder kun
+        -- tilbage til item.slot hvis en anden kaldekonvention bruges
+        -- (fx et script der kalder exporten direkte).
+        slot = slot or (type(item) == 'table' and item.slot)
+
         notify(box.label or 'Mystery Box', 'Åbner boxen...', 'inform')
         TriggerServerEvent('Masitz-MysteryBox:openBox', boxKey, slot)
     end)
