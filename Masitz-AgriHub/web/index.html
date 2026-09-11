@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masitz-AgriHub</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app" class="hidden">
+
+    <!-- ───────────── LOADING ───────────── -->
+    <section id="screen-loading" class="screen">
+        <div class="loading-box">
+            <div class="loading-logo">AgriHub</div>
+            <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+            <div class="loading-text">Initialiserer system…</div>
+        </div>
+    </section>
+
+    <!-- ───────────── LOGIN ───────────── -->
+    <section id="screen-login" class="screen hidden">
+        <div class="login-card">
+            <div class="login-logo">
+                <span class="login-logo-icon">🌾</span>
+                <span>AgriHub</span>
+            </div>
+            <p class="login-sub">Landbrugslogistik-terminal</p>
+            <button id="btn-login" class="btn btn-primary btn-block">Log ind</button>
+            <p id="login-error" class="login-error hidden"></p>
+        </div>
+    </section>
+
+    <!-- ───────────── DASHBOARD ───────────── -->
+    <section id="screen-dashboard" class="screen hidden">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-icon">🌾</span>
+                <span class="brand-text">AgriHub</span>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-tab="tasks">
+                    <span class="nav-icon">📋</span><span>Opgaver</span>
+                </button>
+                <button class="nav-item" data-tab="rentals">
+                    <span class="nav-icon">🚜</span><span>Udlejning</span>
+                </button>
+                <button class="nav-item" data-tab="overview">
+                    <span class="nav-icon">📊</span><span>Oversigt</span>
+                </button>
+                <button class="nav-item" data-tab="shop">
+                    <span class="nav-icon">🛒</span><span>Indkøb</span>
+                </button>
+                <button class="nav-item" data-tab="contracts">
+                    <span class="nav-icon">📄</span><span>Kontrakter</span>
+                </button>
+                <button class="nav-item hidden" id="nav-admin" data-tab="admin">
+                    <span class="nav-icon">🛡️</span><span>Admin</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-role" id="user-role">USER</div>
+                <button id="btn-logout" class="btn btn-ghost btn-block">Log ud</button>
+            </div>
+        </aside>
+
+        <main class="content">
+            <button class="close-btn" id="btn-close" title="Luk">✕</button>
+
+            <!-- OPGAVER -->
+            <div class="panel active" id="panel-tasks">
+                <header class="panel-header">
+                    <h1>Opgaver</h1>
+                    <button class="btn btn-secondary btn-sm" id="btn-tasks-refresh">Opdatér</button>
+                </header>
+                <div class="section">
+                    <h2 class="section-title">Ledige opgaver</h2>
+                    <div class="card-grid" id="tasks-available"></div>
+                </div>
+                <div class="section">
+                    <h2 class="section-title">Dine aktive opgaver</h2>
+                    <div class="card-grid" id="tasks-active"></div>
+                </div>
+            </div>
+
+            <!-- UDLEJNING -->
+            <div class="panel" id="panel-rentals">
+                <header class="panel-header">
+                    <h1>Maskinudlejning</h1>
+                    <button class="btn btn-secondary btn-sm" id="btn-rentals-refresh">Opdatér</button>
+                </header>
+                <div class="section">
+                    <h2 class="section-title">Lej fra AgriHub</h2>
+                    <div class="card-grid" id="rentals-catalog"></div>
+                </div>
+            </div>
+
+            <!-- OVERSIGT -->
+            <div class="panel" id="panel-overview">
+                <header class="panel-header"><h1>Oversigt</h1></header>
+                <div class="stat-grid" id="overview-stats"></div>
+                <div class="section">
+                    <h2 class="section-title">Dine lejemål</h2>
+                    <div class="table-wrap"><table class="data-table" id="overview-rentals"></table></div>
+                </div>
+            </div>
+
+            <!-- INDKØB -->
+            <div class="panel" id="panel-shop">
+                <header class="panel-header">
+                    <h1>Indkøb</h1>
+                    <div class="cart-summary" id="cart-summary">Kurv: 0 kr.</div>
+                </header>
+                <div class="section">
+                    <div class="card-grid" id="shop-items"></div>
+                </div>
+                <footer class="panel-footer">
+                    <select id="shop-payment" class="input">
+                        <option value="bank">Bank</option>
+                        <option value="cash">Kontant</option>
+                    </select>
+                    <button class="btn btn-primary" id="btn-shop-purchase">Gennemfør køb</button>
+                </footer>
+            </div>
+
+            <!-- KONTRAKTER -->
+            <div class="panel" id="panel-contracts">
+                <header class="panel-header">
+                    <h1>Kontrakter</h1>
+                    <button class="btn btn-secondary btn-sm" id="btn-contracts-refresh">Opdatér</button>
+                </header>
+                <div class="section">
+                    <h2 class="section-title">Tilbud du har modtaget</h2>
+                    <div class="card-grid" id="contracts-incoming"></div>
+                </div>
+                <div class="section">
+                    <h2 class="section-title">Dine kontrakter (som lejer)</h2>
+                    <div class="card-grid" id="contracts-renter"></div>
+                </div>
+                <div class="section">
+                    <h2 class="section-title">Dine kontrakter (som udlejer)</h2>
+                    <div class="card-grid" id="contracts-owner"></div>
+                </div>
+            </div>
+
+            <!-- ADMIN -->
+            <div class="panel" id="panel-admin">
+                <header class="panel-header"><h1>Administration</h1></header>
+                <div class="stat-grid" id="admin-status"></div>
+                <div class="section">
+                    <h2 class="section-title">Spillersøgning</h2>
+                    <div class="search-row">
+                        <input type="text" id="admin-search-input" class="input" placeholder="Navn, ID eller Discord-ID…">
+                        <button class="btn btn-secondary" id="admin-search-btn">Søg</button>
+                    </div>
+                    <div class="table-wrap"><table class="data-table" id="admin-search-results"></table></div>
+                </div>
+                <div class="section">
+                    <h2 class="section-title">Brugere med adgang</h2>
+                    <div class="table-wrap"><table class="data-table" id="admin-user-list"></table></div>
+                </div>
+                <div class="section">
+                    <h2 class="section-title">Seneste logs</h2>
+                    <div class="table-wrap"><table class="data-table" id="admin-logs"></table></div>
+                </div>
+            </div>
+        </main>
+    </section>
+</div>
+
+<div id="modal-root" class="modal-overlay hidden"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
