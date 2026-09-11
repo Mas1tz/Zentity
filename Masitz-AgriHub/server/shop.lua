@@ -82,4 +82,17 @@ lib.callback.register('masitz_agrihub:shop:purchase', function(src, cart, paymen
     return { success = true, total = total }
 end)
 
+-- ─── EJEDE ANTAL (vises i NUI'en, så man kan se hvad man allerede
+--     har af fx Kunstgødning FØR man køber mere ovenpå) ───────────
+lib.callback.register('masitz_agrihub:shop:counts', function(src)
+    if not AH.RequireSession(src) then return {} end
+
+    local counts = {}
+    for _, item in ipairs(Config.Agri.Shop) do
+        local ok, count = pcall(function() return exports.ox_inventory:GetItemCount(src, item.item) end)
+        counts[item.id] = (ok and tonumber(count)) or 0
+    end
+    return counts
+end)
+
 AH.Log('server/shop.lua indlæst.')

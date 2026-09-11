@@ -75,11 +75,14 @@ dyretransport, maskine-til-landmand) deler samme tabel (`agrihub_tasks`) og
 samme livscyklus: `available -> active -> completed/expired/cancelled`.
 
 - **Ingen baggrunds-loop.** Nye opgaver genereres kun når en spiller reelt
-  åbner opgavelisten (`Config.Agri.TaskPool.generateOnNuiOpen`), op til
-  `maxPerType` ledige pr. type.
-- **Notifikation er event-drevet.** Når en ny opgave genereres, sendes
-  `lib.notify` til alle online AgriHub-brugere med det samme — ikke via en
-  separat polling-tråd.
+  åbner opgavelisten (`Config.Agri.TaskPool.generateOnNuiOpen`), op til et
+  samlet loft (`Config.Agri.TaskPool.maxTotal`, default 4) på tværs af ALLE
+  typer — ikke 3-4 af hver. Er puljen helt tom, fyldes den op med det
+  samme; ellers trickler nye opgaver kun ind med mindst
+  `Config.Agri.TaskPool.regenIntervalSec` (default 15 min) imellem.
+- **Ingen notify-spam.** Nye opgaver dukker stille op i listen næste gang
+  man åbner Opgaver-fanen — der sendes bevidst ingen `lib.notify` til alle
+  online spillere, hverken ved login eller ved generering.
 - **Server validerer alt.** `reachStop` tjekker den reelle spiller-position
   (`GetEntityCoords`) og evt. påkrævet køretøj (`GetVehiclePedIsIn` +
   model-hash) — klienten kan aldrig selv erklære et stop fuldført eller
@@ -117,6 +120,10 @@ Server bygger linjelisten ud fra `Config.Agri.Shop` — klientens `cart` bruges
 **udelukkende** til at slå id/antal op, aldrig pris/label. Inventory-plads
 tjekkes før betaling; slår vare-udlevering fejl efter betaling, refunderes
 hele beløbet automatisk og hændelsen logges som en sikkerhedshændelse.
+
+Hvert vare-kort i NUI'en viser "Du har: N stk." (hentet server-side fra
+`ox_inventory` ved hvert åbn af Indkøb-fanen), så man kan se hvad man
+allerede har af fx Kunstgødning før man køber mere ovenpå.
 
 ### Adgangsstyring (§ SUPER_ADMIN — kun server-side)
 

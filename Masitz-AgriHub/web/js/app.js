@@ -290,11 +290,14 @@
         updateCartSummary();
         const box = el('shop-items');
         box.innerHTML = '';
+        const counts = await nuiFetch('shopCounts', {}) || {};
         state.shopItems.forEach((item) => {
+            const owned = counts[item.id] || 0;
             const card = document.createElement('div');
             card.className = 'card';
             card.innerHTML = `
                 <div class="card-title">${item.label}</div>
+                <div class="card-sub">Du har: ${owned} stk.</div>
                 <div class="card-row"><span>Pris/stk</span><span>${money(item.price)}</span></div>
                 <div class="qty-stepper">
                     <button class="qty-minus">−</button>

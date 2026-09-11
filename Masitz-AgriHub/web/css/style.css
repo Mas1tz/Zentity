@@ -39,6 +39,22 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* #app selv er transparent og kun til centrering — den rigtige
+       "enhed" (tablet/computer) er #device herunder. Uden dette ville
+       hele skærmen blive dækket af NUI'en, hvilket er præcis det der
+       skulle rettes. */
+}
+
+#device {
+    width: min(92vw, 1440px);
+    height: min(88vh, 880px);
+    background: var(--bg-base);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
+    overflow: hidden;
+    position: relative;
+    display: flex;
 }
 
 .screen {

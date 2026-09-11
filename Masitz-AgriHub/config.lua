@@ -140,7 +140,7 @@ Config.Agri.Farmers = {
     {
         id        = 'andersen',
         name      = 'Landmand Andersen',
-        pedModel  = `a_f_m_farmgirl_01`,
+        pedModel  = `a_f_m_salton_01`,
         coords    = vec3(1697.6, 4924.7, 42.0),
         heading   = 200.0,
         buys      = { 'animal_feed' },
@@ -298,12 +298,14 @@ Config.Agri.TaskTypes = {
     },
 }
 
--- Hvor mange ledige opgaver af hver type der maksimalt findes samtidig,
--- og hvor tit puljen genopfyldes (kun brugt til at AFGØRE om der skal
--- genereres en ny opgave NÅR spilleren åbner NUI'en/opgave-listen —
--- ikke en baggrunds-loop).
+-- Samlet loft over ALLE ledige opgaver på tværs af typer (ikke pr. type) —
+-- holder listen overskuelig i stedet for at oversvømme den. Puljen
+-- genopfyldes langsomt over tid (regenIntervalSec) i stedet for at spawne
+-- alt på én gang. Fyldes/tjekkes KUN når en spiller rent faktisk åbner
+-- NUI'en/opgave-listen — ikke en baggrunds-loop.
 Config.Agri.TaskPool = {
-    maxPerType         = 3,
+    maxTotal           = 4,
+    regenIntervalSec   = 900, -- tidligst 15 min mellem hver ny opgave der spawnes
     generateOnNuiOpen  = true,
 }
 

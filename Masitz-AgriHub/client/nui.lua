@@ -44,6 +44,10 @@ cb('shopCatalog', function()
     return Config.Agri.Shop
 end)
 
+cb('shopCounts', function()
+    return lib.callback.await('masitz_agrihub:shop:counts', false)
+end)
+
 cb('farmerList', function()
     local out = {}
     for _, f in ipairs(Config.Agri.Farmers) do

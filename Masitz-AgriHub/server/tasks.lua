@@ -191,24 +191,50 @@ function AH.GenerateTask(taskType)
         { taskId, taskType, json.encode({ stops = stops, meta = meta }), reward, expiresAt }
     )
 
-    -- §45: notificér online AgriHub-brugere om den nye opgave — event-
-    -- drevet af selve genereringen, ikke en baggrunds-broadcast-loop.
-    for src2 in pairs(AH.Sessions) do
-        AH.Notify(src2, ('En ny %s-opgave er blevet tilgængelig.'):format(typeCfg.label:lower()), 'inform', 'Ny AgriHub-ordre')
-    end
-
+    -- Bevidst INGEN notify-broadcast her — nye opgaver dukker op i listen
+    -- næste gang spilleren selv åbner Opgaver-fanen, uden at spamme alle
+    -- online spillere med en besked hver gang puljen fyldes op.
     return taskId
 end
 
+-- Samlet loft (Config.Agri.TaskPool.maxTotal) på tværs af ALLE typer,
+-- genopfyldt langsomt over tid (regenIntervalSec) i stedet for at spawne
+-- hele puljen på én gang. Kun tjekket når en spiller rent faktisk åbner
+-- opgave-listen — ingen baggrunds-loop.
+local lastGeneratedAt = 0
+
 local function EnsureTaskPool()
-    for taskType in pairs(Config.Agri.TaskTypes) do
-        local count = MySQL.scalar.await(
-            'SELECT COUNT(*) FROM agrihub_tasks WHERE type = ? AND status = "available" AND (expires_at IS NULL OR expires_at > NOW())',
-            { taskType }
-        ) or 0
-        local toGenerate = Config.Agri.TaskPool.maxPerType - count
-        for _ = 1, toGenerate do
-            AH.GenerateTask(taskType)
+    local availableCount = MySQL.scalar.await(
+        'SELECT COUNT(*) FROM agrihub_tasks WHERE status = "available" AND (expires_at IS NULL OR expires_at > NOW())', {}
+    ) or 0
+    if availableCount >= Config.Agri.TaskPool.maxTotal then return end
+
+    local types = {}
+    for taskType in pairs(Config.Agri.TaskTypes) do types[#types + 1] = taskType end
+
+    if availableCount == 0 then
+        -- Puljen er helt tom (fx en frisk installation) — fyld den op med
+        -- det samme i stedet for at spillerne skal vente på trickle-in.
+        local pool = ShuffleCopy(types)
+        local generated = 0
+        for _, taskType in ipairs(pool) do
+            if generated >= Config.Agri.TaskPool.maxTotal then break end
+            if AH.GenerateTask(taskType) then generated = generated + 1 end
+        end
+        lastGeneratedAt = os.time()
+        return
+    end
+
+    local now = os.time()
+    if lastGeneratedAt ~= 0 and (now - lastGeneratedAt) < Config.Agri.TaskPool.regenIntervalSec then
+        return -- der er ikke gået nok tid siden sidste nye opgave
+    end
+
+    local pool = ShuffleCopy(types)
+    for _, taskType in ipairs(pool) do
+        if AH.GenerateTask(taskType) then
+            lastGeneratedAt = now
+            break
         end
     end
 end
