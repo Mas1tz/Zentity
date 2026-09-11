@@ -69,7 +69,15 @@ end)
 -- så listen kan filtreres — al reel logik/pris/adgang afgøres server-side.
 local function SpawnFarmer(farmer)
     local model = farmer.pedModel
-    lib.requestModel(model, 10000)
+
+    -- lib.requestModel FEJLER med error() (ikke et falsy return) hvis
+    -- modellen er ugyldig — pcall her sikrer at ÉN forkert pedModel i
+    -- config.lua ikke stopper resten af landmændene fra at spawne.
+    local ok, err = pcall(lib.requestModel, model, 10000)
+    if not ok then
+        print(('[Masitz-AgriHub] Kunne ikke loade landmand-model for %s: %s'):format(farmer.id, tostring(err)))
+        return
+    end
 
     local ped = CreatePed(4, model, farmer.coords.x, farmer.coords.y, farmer.coords.z - 1.0, farmer.heading, false, true)
     SetEntityAsMissionEntity(ped, true, true)

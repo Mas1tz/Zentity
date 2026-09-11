@@ -129,6 +129,10 @@ cb('rentalCancelSublet', function(data)
     return AH.CancelSublet(data.contractId)
 end)
 
+cb('rentalCancelByPlayer', function(data)
+    return AH.CancelSubletByPlayer(data.targetServerId)
+end)
+
 -- ─── ADMIN (server genvalidérer SUPER_ADMIN live ved hvert kald) ──
 cb('adminSearchPlayer', function(data)
     return lib.callback.await('masitz_agrihub:admin:searchPlayer', false, data.query)

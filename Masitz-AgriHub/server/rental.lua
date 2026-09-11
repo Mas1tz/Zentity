@@ -297,6 +297,11 @@ end)
 -- egen pris. Nøglen skifter FØRST hånd når begge parter har
 -- godkendt OG signeret, og lejeren reelt har betalt.
 
+-- BEMÆRK: opslag/tilbud kræver IKKE at modtageren allerede er logget ind
+-- på AgriHub — kun at de er online på serveren. At kræve en aktiv
+-- AgriHub-session for at kunne slå dem op gjorde det umuligt at skrive
+-- deres ID hvis de ikke tilfældigvis havde tabletten åben i samme øjeblik.
+-- Selve GODKENDELSEN/signeringen kræver stadig at DE selv logger ind.
 lib.callback.register('masitz_agrihub:rental:p2p:lookupPlayer', function(src, query)
     if not AH.RequireSession(src) then return {} end
     query = tostring(query or ''):lower()
@@ -305,7 +310,7 @@ lib.callback.register('masitz_agrihub:rental:p2p:lookupPlayer', function(src, qu
     local results = {}
     for _, playerId in ipairs(GetPlayers()) do
         local pid = tonumber(playerId)
-        if pid ~= src and AH.Sessions[pid] then
+        if pid and pid ~= src then
             local name = GetPlayerName(pid) or ''
             if tostring(pid) == query or name:lower():find(query, 1, true) then
                 results[#results + 1] = { serverId = pid, name = name }
@@ -326,11 +331,11 @@ lib.callback.register('masitz_agrihub:rental:p2p:create', function(src, sourceCo
     end
 
     targetServerId = tonumber(targetServerId)
-    local targetSession = targetServerId and AH.Sessions[targetServerId]
-    if not targetServerId or not targetSession then
-        return { success = false, msg = 'Spilleren er ikke logget ind på AgriHub.' }
+    local targetXp = targetServerId and AH.GetXPlayer(targetServerId)
+    if not targetServerId or not targetXp then
+        return { success = false, msg = 'Spilleren blev ikke fundet online. Tjek server-ID\'et.' }
     end
-    if targetSession.identifier == session.identifier then
+    if targetXp.identifier == session.identifier then
         return { success = false, msg = 'Du kan ikke fremleje til dig selv.' }
     end
 
@@ -349,16 +354,41 @@ lib.callback.register('masitz_agrihub:rental:p2p:create', function(src, sourceCo
              owner_approved, renter_approved, owner_signed, renter_signed)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL ? HOUR), 'pending', 1, 0, 0, 0)]],
         {
-            contractId, session.identifier, targetSession.identifier,
+            contractId, session.identifier, targetXp.identifier,
             sourceContract.vehicle_model, sourceContract.vehicle_plate,
             priceCfg.deposit, priceCfg.rent, sourceContract.payment_method, durationHours,
         }
     )
 
     AH.Notify(targetServerId, ('Du har fået et lejetilbud (%s) fra %s. Åbn AgriHub for at svare.'):format(priceCfg.label, session.name), 'inform', 'Nyt lejetilbud')
-    AH.LogAction('contracts', 'P2P_OFFER_CREATED', src, { contractId = contractId, machine = sourceContract.vehicle_model, target = targetSession.identifier })
+    AH.LogAction('contracts', 'P2P_OFFER_CREATED', src, { contractId = contractId, machine = sourceContract.vehicle_model, target = targetXp.identifier })
 
-    return { success = true, contractId = contractId }
+    return { success = true, contractId = contractId, targetName = targetXp.getName() }
+end)
+
+-- Opsig et VERSERENDE (endnu ikke signeret) tilbud direkte ved at skrive
+-- den anden parts server-ID — bruges som en robust fallback i NUI'en,
+-- uafhængigt af om kontrakt-kortet rent faktisk er blevet renderet endnu.
+lib.callback.register('masitz_agrihub:rental:p2p:cancelByPlayer', function(src, targetServerId)
+    local session = AH.RequireSession(src)
+    if not session then return { success = false, msg = 'Du er ikke logget ind på AgriHub.' } end
+
+    local targetXp = AH.GetXPlayer(tonumber(targetServerId))
+    if not targetXp then return { success = false, msg = 'Spilleren blev ikke fundet online. Tjek server-ID\'et.' } end
+
+    local row = MySQL.single.await(
+        [[SELECT contract_id FROM agrihub_contracts
+          WHERE status = "pending"
+            AND ((owner_identifier = ? AND renter_identifier = ?) OR (owner_identifier = ? AND renter_identifier = ?))
+          ORDER BY created_at DESC LIMIT 1]],
+        { session.identifier, targetXp.identifier, targetXp.identifier, session.identifier }
+    )
+    if not row then return { success = false, msg = 'Ingen verserende kontrakt fundet med denne spiller.' } end
+
+    MySQL.update.await('UPDATE agrihub_contracts SET status = "cancelled" WHERE contract_id = ?', { row.contract_id })
+    AH.LogAction('contracts', 'P2P_CANCELLED', src, { contractId = row.contract_id, target = targetXp.identifier })
+
+    return { success = true, contractId = row.contract_id }
 end)
 
 lib.callback.register('masitz_agrihub:rental:p2p:respond', function(src, contractId, accept)

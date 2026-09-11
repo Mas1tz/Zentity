@@ -76,7 +76,17 @@ local function SpawnTaskVehicle(taskType, typeCfg, meta, taskId)
     if not model then return nil, nil end
 
     local veh = AH.SpawnVehicle(model, coords, heading, plate)
-    if not veh then return nil, nil end
+    if not veh and group == 'delivery' and #Config.Agri.DeliveryVehicles > 1 then
+        -- Selv-helbredende: er den valgte model ugyldig (fx en fejl i
+        -- config.lua), prøv én gang til med en anden tilfældig model i
+        -- stedet for at lade opgaven fejle helt.
+        model = Config.Agri.DeliveryVehicles[math.random(1, #Config.Agri.DeliveryVehicles)]
+        veh = AH.SpawnVehicle(model, coords, heading, plate)
+    end
+    if not veh then
+        lib.notify({ title = 'AgriHub', description = 'Køretøjet kunne ikke spawnes — kontakt en administrator.', type = 'error' })
+        return nil, nil
+    end
 
     TriggerServerEvent('masitz_agrihub:tasks:vehicleSpawned', plate)
 

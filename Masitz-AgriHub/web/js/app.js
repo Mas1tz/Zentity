@@ -4,6 +4,11 @@
 //  den viser hvad Lua/serveren svarer, og sender kun ønsker videre.
 //  Rolle/adgang vist her er ALTID hvad server/access.lua returnerede
 //  ved login, aldrig noget denne fil selv erklærer.
+//
+//  BEMÆRK: window.alert()/confirm()/prompt() bruges BEVIDST ALDRIG her.
+//  FiveM's NUI-browser (CEF) håndterer native, blokerende JS-dialoger
+//  dårligt — de kan fryse/ødelægge resten af NUI'en. Al feedback går
+//  gennem toast() i stedet, som er ren DOM/CSS og aldrig blokerer.
 // ============================================================
 
 (function () {
@@ -29,6 +34,28 @@
         farmers: [],
         taskTypes: {},
     };
+
+    // ───────── TOAST (erstatter alert() helt) ─────────
+    function toast(message, type) {
+        type = type || 'info';
+        const stack = el('toast-stack');
+        if (!stack) return;
+
+        const node = document.createElement('div');
+        node.className = `toast toast-${type}`;
+        const iconMap = { success: '✔', error: '✕', info: 'ℹ', warning: '⚠' };
+        node.innerHTML = `<span class="toast-icon">${iconMap[type] || iconMap.info}</span><span class="toast-msg"></span>`;
+        node.querySelector('.toast-msg').textContent = message;
+        stack.appendChild(node);
+
+        requestAnimationFrame(() => node.classList.add('toast-in'));
+
+        setTimeout(() => {
+            node.classList.remove('toast-in');
+            node.classList.add('toast-out');
+            setTimeout(() => node.remove(), 300);
+        }, 4200);
+    }
 
     // ───────── OPEN / CLOSE ─────────
     window.addEventListener('message', (event) => {
@@ -111,7 +138,11 @@
     function switchTab(tab, farmerId) {
         document.querySelectorAll('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
         document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
-        el(`panel-${tab}`).classList.add('active');
+        const panel = el(`panel-${tab}`);
+        panel.classList.add('active');
+        panel.classList.remove('panel-enter');
+        void panel.offsetWidth; // genstart animationen selv hvis samme fane vælges igen
+        panel.classList.add('panel-enter');
 
         if (tab === 'tasks') refreshTasks(farmerId);
         else if (tab === 'rentals') refreshRentals(farmerId);
@@ -121,8 +152,18 @@
         else if (tab === 'admin') refreshAdmin();
     }
 
+    // Tilføjer korte, forskudte "fade+slide in" animationer til et sæt
+    // kort, så listen føles levende i stedet for at bare "dumpe" ind.
+    function animateIn(container) {
+        Array.from(container.children).forEach((node, i) => {
+            node.classList.add('card-enter');
+            node.style.animationDelay = `${Math.min(i, 8) * 45}ms`;
+        });
+    }
+
     // ───────── MODAL HELPER ─────────
-    function openModal(title, fieldsHtml, onSubmit) {
+    function openModal(title, fieldsHtml, onSubmit, options) {
+        options = options || {};
         const root = el('modal-root');
         root.innerHTML = `
             <div class="modal-box">
@@ -130,7 +171,7 @@
                 <div class="modal-body">${fieldsHtml}</div>
                 <div class="modal-actions">
                     <button class="btn btn-ghost" id="modal-cancel">Annullér</button>
-                    <button class="btn btn-primary" id="modal-confirm">Bekræft</button>
+                    <button class="btn btn-primary" id="modal-confirm">${options.confirmLabel || 'Bekræft'}</button>
                 </div>
             </div>`;
         root.classList.remove('hidden');
@@ -157,22 +198,26 @@
         const filtered = focusFarmerId ? available.filter((t) => taskFarmerId(t) === focusFarmerId) : available;
 
         if (filtered.length === 0) {
-            availBox.innerHTML = '<div class="card-empty">Ingen ledige opgaver lige nu.</div>';
+            availBox.innerHTML = '<div class="card-empty">Ingen ledige opgaver lige nu — der dukker nye op løbende.</div>';
         }
         filtered.forEach((t) => {
             const typeInfo = state.taskTypes[t.type] || { label: t.type, icon: '📦' };
             const card = document.createElement('div');
             card.className = 'card';
             card.innerHTML = `
-                <div class="card-title">${typeInfo.icon || ''} ${typeInfo.label}</div>
-                <div class="card-row"><span>Belønning</span><span>${money(t.reward)}</span></div>
+                <div class="card-title"><span class="card-icon">${typeInfo.icon || '📦'}</span>${typeInfo.label}</div>
+                <div class="card-row"><span>Belønning</span><span class="reward">${money(t.reward)}</span></div>
                 <div class="card-actions"><button class="btn btn-primary btn-sm btn-claim">Tag opgave</button></div>`;
-            card.querySelector('.btn-claim').addEventListener('click', async () => {
+            const claimBtn = card.querySelector('.btn-claim');
+            claimBtn.addEventListener('click', async () => {
+                claimBtn.disabled = true;
                 const res = await nuiFetch('tasksClaim', { taskId: t.task_id });
-                if (!(res && res.success)) alert((res && res.msg) || 'Kunne ikke tage opgaven.');
+                if (res && res.success) toast('Opgave taget — følg blip\'en i spillet.', 'success');
+                else { toast((res && res.msg) || 'Kunne ikke tage opgaven.', 'error'); claimBtn.disabled = false; }
             });
             availBox.appendChild(card);
         });
+        animateIn(availBox);
 
         const activeBox = el('tasks-active');
         activeBox.innerHTML = '';
@@ -184,11 +229,12 @@
             const card = document.createElement('div');
             card.className = 'card';
             card.innerHTML = `
-                <div class="card-title">${typeInfo.icon || ''} ${typeInfo.label}</div>
+                <div class="card-title"><span class="card-icon">${typeInfo.icon || '📦'}</span>${typeInfo.label}</div>
                 <span class="card-badge success">AKTIV</span>
-                <div class="card-row"><span>Belønning</span><span>${money(t.reward)}</span></div>`;
+                <div class="card-row"><span>Belønning</span><span class="reward">${money(t.reward)}</span></div>`;
             activeBox.appendChild(card);
         });
+        animateIn(activeBox);
     }
 
     function taskFarmerId(task) {
@@ -221,7 +267,7 @@
             const card = document.createElement('div');
             card.className = 'card';
             card.innerHTML = `
-                <div class="card-title">🚜 ${m.label}</div>
+                <div class="card-title"><span class="card-icon">🚜</span>${m.label}</div>
                 <div class="card-row"><span>Depositum</span><span>${money(m.deposit)}</span></div>
                 <div class="card-row"><span>Leje</span><span>${money(m.rent)}</span></div>
                 <div class="card-actions"><button class="btn btn-primary btn-sm btn-rent">Lej</button></div>`;
@@ -242,14 +288,29 @@
                     const paymentMethod = el('modal-payment').value;
                     const durationHours = parseInt(el('modal-duration').value, 10);
                     const res = await nuiFetch('rentalNpcCreate', { machine: m.machine, paymentMethod, durationHours });
-                    if (!(res && res.success)) alert((res && res.msg) || 'Kunne ikke oprette lejeaftale.');
+                    if (res && res.success) toast(`${m.label} er klar til afhentning.`, 'success');
+                    else toast((res && res.msg) || 'Kunne ikke oprette lejeaftale.', 'error');
                 });
             });
             box.appendChild(card);
         });
+        animateIn(box);
     }
 
     // ───────── OVERSIGT ─────────
+    function animateNumber(node, target) {
+        const from = 0;
+        const duration = 500;
+        const start = performance.now();
+        function step(now) {
+            const t = Math.min(1, (now - start) / duration);
+            const eased = 1 - Math.pow(1 - t, 3);
+            node.textContent = Math.round(from + (target - from) * eased);
+            if (t < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
     async function refreshOverview() {
         const [tasks, rentals] = await Promise.all([nuiFetch('tasksList', {}), nuiFetch('rentalList', {})]);
         const activeTasks = (tasks && tasks.active) || [];
@@ -258,9 +319,10 @@
         const activeRentals = asRenter.filter((c) => c.status === 'active');
 
         el('overview-stats').innerHTML = `
-            <div class="stat-box"><div class="stat-value">${activeTasks.length}</div><div class="stat-label">Aktive opgaver</div></div>
-            <div class="stat-box"><div class="stat-value">${availableTasks.length}</div><div class="stat-label">Ledige opgaver</div></div>
-            <div class="stat-box"><div class="stat-value">${activeRentals.length}</div><div class="stat-label">Aktive lejemål</div></div>`;
+            <div class="stat-box"><div class="stat-value" data-target="${activeTasks.length}">0</div><div class="stat-label">Aktive opgaver</div></div>
+            <div class="stat-box"><div class="stat-value" data-target="${availableTasks.length}">0</div><div class="stat-label">Ledige opgaver</div></div>
+            <div class="stat-box"><div class="stat-value" data-target="${activeRentals.length}">0</div><div class="stat-label">Aktive lejemål</div></div>`;
+        el('overview-stats').querySelectorAll('.stat-value').forEach((node) => animateNumber(node, Number(node.dataset.target)));
 
         const table = el('overview-rentals');
         if (asRenter.length === 0) {
@@ -297,7 +359,7 @@
             card.className = 'card';
             card.innerHTML = `
                 <div class="card-title">${item.label}</div>
-                <div class="card-sub">Du har: ${owned} stk.</div>
+                <div class="card-sub">Du har: <strong>${owned}</strong> stk.</div>
                 <div class="card-row"><span>Pris/stk</span><span>${money(item.price)}</span></div>
                 <div class="qty-stepper">
                     <button class="qty-minus">−</button>
@@ -315,12 +377,16 @@
             });
             box.appendChild(card);
         });
+        animateIn(box);
     }
 
     function setCartQty(item, qty, qtyEl) {
         if (qty <= 0) delete state.cart[item.id];
         else state.cart[item.id] = qty;
         qtyEl.textContent = qty;
+        qtyEl.classList.remove('bump');
+        void qtyEl.offsetWidth;
+        qtyEl.classList.add('bump');
         updateCartSummary();
     }
 
@@ -335,14 +401,14 @@
 
     el('btn-shop-purchase').addEventListener('click', async () => {
         const cart = Object.keys(state.cart).map((id) => ({ id, qty: state.cart[id] }));
-        if (cart.length === 0) { alert('Din kurv er tom.'); return; }
+        if (cart.length === 0) { toast('Din kurv er tom.', 'warning'); return; }
         const paymentMethod = el('shop-payment').value;
         const res = await nuiFetch('shopPurchase', { cart, paymentMethod });
         if (res && res.success) {
-            alert(`Køb gennemført — ${money(res.total)} betalt.`);
+            toast(`Køb gennemført — ${money(res.total)} betalt.`, 'success');
             refreshShop();
         } else {
-            alert((res && res.msg) || 'Købet mislykkedes.');
+            toast((res && res.msg) || 'Købet mislykkedes.', 'error');
         }
     });
 
@@ -365,7 +431,7 @@
             card.className = 'card';
             const needsApproval = c.renter_approved === 0;
             card.innerHTML = `
-                <div class="card-title">📄 ${c.contract_id}</div>
+                <div class="card-title"><span class="card-icon">📄</span>${c.contract_id}</div>
                 <div class="card-sub">${c.vehicle_model} — ${money(c.deposit)} depositum + ${money(c.rent)} leje</div>
                 <div class="card-actions"></div>`;
             const actions = card.querySelector('.card-actions');
@@ -373,25 +439,37 @@
                 const acceptBtn = document.createElement('button');
                 acceptBtn.className = 'btn btn-primary btn-sm';
                 acceptBtn.textContent = 'Godkend';
-                acceptBtn.onclick = async () => { await nuiFetch('rentalRespondSublet', { contractId: c.contract_id, accept: true }); refreshContracts(); };
+                acceptBtn.onclick = async () => {
+                    const res = await nuiFetch('rentalRespondSublet', { contractId: c.contract_id, accept: true });
+                    if (res && res.success) toast('Tilbud godkendt — husk at signere.', 'success');
+                    refreshContracts();
+                };
                 const declineBtn = document.createElement('button');
                 declineBtn.className = 'btn btn-danger btn-sm';
                 declineBtn.textContent = 'Afvis';
-                declineBtn.onclick = async () => { await nuiFetch('rentalRespondSublet', { contractId: c.contract_id, accept: false }); refreshContracts(); };
+                declineBtn.onclick = async () => {
+                    await nuiFetch('rentalRespondSublet', { contractId: c.contract_id, accept: false });
+                    toast('Tilbud afvist.', 'info');
+                    refreshContracts();
+                };
                 actions.append(acceptBtn, declineBtn);
             } else {
                 const signBtn = document.createElement('button');
                 signBtn.className = 'btn btn-primary btn-sm';
                 signBtn.textContent = 'Signér';
                 signBtn.onclick = async () => {
+                    signBtn.disabled = true;
                     const res = await nuiFetch('rentalSignContract', { contractId: c.contract_id });
-                    if (!(res && res.success)) alert((res && res.msg) || 'Kunne ikke signere.');
+                    if (res && res.success && res.activated) toast('Kontrakten er aktiv!', 'success');
+                    else if (res && res.success) toast('Din signatur er registreret — venter på modparten.', 'info');
+                    else { toast((res && res.msg) || 'Kunne ikke signere.', 'error'); signBtn.disabled = false; }
                     refreshContracts();
                 };
                 actions.appendChild(signBtn);
             }
             incomingBox.appendChild(card);
         });
+        animateIn(incomingBox);
 
         // Mine kontrakter som lejer (kan tilbyde videre / se status)
         const renterBox = el('contracts-renter');
@@ -400,7 +478,7 @@
             const card = document.createElement('div');
             card.className = 'card';
             card.innerHTML = `
-                <div class="card-title">🚜 ${c.vehicle_model}</div>
+                <div class="card-title"><span class="card-icon">🚜</span>${c.vehicle_model}</div>
                 <div class="card-sub">${c.contract_id} — ${c.vehicle_plate || '—'}</div>
                 ${statusBadge(c.status)}
                 <div class="card-actions"></div>`;
@@ -420,6 +498,7 @@
 
             renterBox.appendChild(card);
         });
+        animateIn(renterBox);
 
         // Mine kontrakter som udlejer (pending fremlejetilbud jeg selv har sendt)
         const ownerBox = el('contracts-owner');
@@ -429,59 +508,88 @@
             const card = document.createElement('div');
             card.className = 'card';
             card.innerHTML = `
-                <div class="card-title">📄 ${c.contract_id}</div>
+                <div class="card-title"><span class="card-icon">📄</span>${c.contract_id}</div>
                 <div class="card-sub">${c.vehicle_model} — afventer modpart</div>
                 <div class="card-actions"></div>`;
             const cancelBtn = document.createElement('button');
             cancelBtn.className = 'btn btn-danger btn-sm';
             cancelBtn.textContent = 'Annullér';
-            cancelBtn.onclick = async () => { await nuiFetch('rentalCancelSublet', { contractId: c.contract_id }); refreshContracts(); };
+            cancelBtn.onclick = async () => {
+                await nuiFetch('rentalCancelSublet', { contractId: c.contract_id });
+                toast('Tilbud annulleret.', 'info');
+                refreshContracts();
+            };
             card.querySelector('.card-actions').appendChild(cancelBtn);
             ownerBox.appendChild(card);
         });
+        animateIn(ownerBox);
+
+        // Robust fallback: opsig et verserende tilbud ved blot at skrive
+        // den anden spillers server-ID, uafhængigt af kortene ovenfor.
+        const cancelByIdBtn = el('contracts-cancel-by-id-btn');
+        if (cancelByIdBtn && !cancelByIdBtn.dataset.bound) {
+            cancelByIdBtn.dataset.bound = '1';
+            cancelByIdBtn.addEventListener('click', async () => {
+                const targetServerId = el('contracts-cancel-by-id-input').value.trim();
+                if (!targetServerId) { toast('Skriv spillerens server-ID først.', 'warning'); return; }
+                const res = await nuiFetch('rentalCancelByPlayer', { targetServerId });
+                if (res && res.success) {
+                    toast(`Kontrakt ${res.contractId} opsagt.`, 'success');
+                    el('contracts-cancel-by-id-input').value = '';
+                    refreshContracts();
+                } else {
+                    toast((res && res.msg) || 'Kunne ikke opsige kontrakten.', 'error');
+                }
+            });
+        }
     }
 
     function openSubletModal(sourceContractId) {
         openModal('Fremlej kontrakt', `
             <div class="modal-field">
-                <label>Søg spiller (navn eller server-ID)</label>
-                <input type="text" class="input" id="modal-lookup">
-                <div id="modal-lookup-results" style="margin-top:8px;"></div>
+                <label>Spillerens server-ID (eller søg på navn)</label>
+                <input type="text" class="input" id="modal-lookup" placeholder="Fx 5, eller et navn…" autocomplete="off">
+                <div id="modal-lookup-results" class="lookup-results"></div>
             </div>
-        `, () => {});
+        `, () => {}, { confirmLabel: 'Send tilbud' });
 
         let selected = null;
         const input = el('modal-lookup');
         const results = el('modal-lookup-results');
         const confirmBtn = el('modal-confirm');
         confirmBtn.disabled = true;
+        input.focus();
 
-        input.addEventListener('input', async () => {
+        const runLookup = async () => {
             const query = input.value.trim();
-            if (query.length < 2) { results.innerHTML = ''; return; }
+            if (query.length < 1) { results.innerHTML = ''; return; }
             const players = await nuiFetch('rentalLookupPlayer', { query });
             results.innerHTML = '';
-            (players || []).forEach((p) => {
+            if (!players || players.length === 0) {
+                results.innerHTML = '<div class="lookup-empty">Ingen spillere fundet.</div>';
+                return;
+            }
+            players.forEach((p) => {
                 const row = document.createElement('div');
-                row.className = 'card';
-                row.style.padding = '8px 10px';
-                row.style.cursor = 'pointer';
-                row.textContent = `${p.name} (ID ${p.serverId})`;
+                row.className = 'lookup-row';
+                row.innerHTML = `<span class="lookup-name">${p.name}</span><span class="lookup-id">ID ${p.serverId}</span>`;
                 row.addEventListener('click', () => {
                     selected = p;
                     confirmBtn.disabled = false;
-                    Array.from(results.children).forEach((c) => (c.style.borderColor = 'var(--border)'));
-                    row.style.borderColor = 'var(--accent)';
+                    results.querySelectorAll('.lookup-row').forEach((r) => r.classList.remove('selected'));
+                    row.classList.add('selected');
                 });
                 results.appendChild(row);
             });
-        });
+        };
+        input.addEventListener('input', runLookup);
 
         confirmBtn.onclick = async () => {
             if (!selected) return;
             closeModal();
             const res = await nuiFetch('rentalOfferSublet', { sourceContractId, targetServerId: selected.serverId, targetName: selected.name });
-            if (!(res && res.success)) alert((res && res.msg) || 'Kunne ikke sende tilbud.');
+            if (res && res.success) toast(`Tilbud sendt til ${selected.name}.`, 'success');
+            else toast((res && res.msg) || 'Kunne ikke sende tilbud.', 'error');
             refreshContracts();
         };
     }
@@ -495,8 +603,8 @@
         `, async () => {
             const extraHours = parseInt(el('modal-extra-hours').value, 10);
             const res = await nuiFetch('rentalExtend', { contractId, extraHours });
-            if (res && res.success) alert(`Forlænget med ${res.extraHours} timer for ${money(res.cost)}.`);
-            else alert((res && res.msg) || 'Kunne ikke forlænge.');
+            if (res && res.success) toast(`Forlænget med ${res.extraHours} timer for ${money(res.cost)}.`, 'success');
+            else toast((res && res.msg) || 'Kunne ikke forlænge.', 'error');
             refreshContracts();
         });
     }
@@ -520,8 +628,8 @@
         table.querySelectorAll('[data-grant]').forEach((btn) => {
             btn.addEventListener('click', async () => {
                 const res = await nuiFetch('adminGrantAccess', { targetId: btn.dataset.grant });
-                if (res && res.success) { alert(`Adgang givet til ${res.name}.`); refreshAdmin(); }
-                else alert((res && res.msg) || 'Kunne ikke give adgang.');
+                if (res && res.success) { toast(`Adgang givet til ${res.name}.`, 'success'); refreshAdmin(); }
+                else toast((res && res.msg) || 'Kunne ikke give adgang.', 'error');
             });
         });
     });
@@ -529,10 +637,11 @@
     async function refreshAdmin() {
         const status = await nuiFetch('adminSystemStatus', {});
         el('admin-status').innerHTML = `
-            <div class="stat-box"><div class="stat-value">${status.activeUsers ?? 0}</div><div class="stat-label">Brugere med adgang</div></div>
-            <div class="stat-box"><div class="stat-value">${status.activeTasks ?? 0}</div><div class="stat-label">Aktive opgaver</div></div>
-            <div class="stat-box"><div class="stat-value">${status.activeContracts ?? 0}</div><div class="stat-label">Aktive kontrakter</div></div>
-            <div class="stat-box"><div class="stat-value">${status.onlinePlayers ?? 0}</div><div class="stat-label">Spillere online</div></div>`;
+            <div class="stat-box"><div class="stat-value" data-target="${status.activeUsers ?? 0}">0</div><div class="stat-label">Brugere med adgang</div></div>
+            <div class="stat-box"><div class="stat-value" data-target="${status.activeTasks ?? 0}">0</div><div class="stat-label">Aktive opgaver</div></div>
+            <div class="stat-box"><div class="stat-value" data-target="${status.activeContracts ?? 0}">0</div><div class="stat-label">Aktive kontrakter</div></div>
+            <div class="stat-box"><div class="stat-value" data-target="${status.onlinePlayers ?? 0}">0</div><div class="stat-label">Spillere online</div></div>`;
+        el('admin-status').querySelectorAll('.stat-value').forEach((node) => animateNumber(node, Number(node.dataset.target)));
 
         const users = await nuiFetch('adminListUsers', {});
         const userTable = el('admin-user-list');
@@ -548,8 +657,8 @@
         userTable.querySelectorAll('[data-revoke]').forEach((btn) => {
             btn.addEventListener('click', async () => {
                 const res = await nuiFetch('adminRevokeAccess', { identifier: btn.dataset.revoke });
-                if (res && res.success) refreshAdmin();
-                else alert((res && res.msg) || 'Kunne ikke fjerne adgang.');
+                if (res && res.success) { toast('Adgang fjernet.', 'success'); refreshAdmin(); }
+                else toast((res && res.msg) || 'Kunne ikke fjerne adgang.', 'error');
             });
         });
 

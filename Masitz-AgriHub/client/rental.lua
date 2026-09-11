@@ -114,6 +114,10 @@ function AH.CancelSublet(contractId)
     return lib.callback.await('masitz_agrihub:rental:p2p:cancel', false, contractId)
 end
 
+function AH.CancelSubletByPlayer(targetServerId)
+    return lib.callback.await('masitz_agrihub:rental:p2p:cancelByPlayer', false, targetServerId)
+end
+
 function AH.ExtendRental(contractId, extraHours)
     return lib.callback.await('masitz_agrihub:rental:extend', false, contractId, extraHours)
 end

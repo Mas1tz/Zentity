@@ -93,7 +93,7 @@ Config.Agri.Shop = {
 --  LEVERINGSKØRETØJER (§17) — kunstgødning/sprøjtemidler/generel fragt
 -- ============================================================
 Config.Agri.DeliveryVehicles = {
-    'pounder2', 'mule3', 'mule4', 'mule5', 'nspeedo', 'youga2', 'rumpo2',
+    'pounder2', 'mule3', 'mule4', 'mule5', 'youga2', 'rumpo2',
     'speedo4', 'pony', 'gburrito2', 'burrito', 'burrito2', 'burrito3',
     'burrito4', 'boxville', 'boxville3', 'slamvan2',
 }

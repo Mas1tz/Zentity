@@ -97,9 +97,13 @@ samme livscyklus: `available -> active -> completed/expired/cancelled`.
 - **Fra AgriHub:** øjeblikkelig, auto-godkendt/signeret kontrakt — depositum
   og leje trækkes fra `Config.Agri.Rentals` med det samme.
 - **Fremleje spiller-til-spiller:** en spiller med en aktiv AgriHub-kontrakt
-  kan tilbyde den videre til en anden spiller (fundet via spiller-opslag +
-  navn-bekræftelse i NUI'en). Prisen genberegnes **friskt fra config** ved
-  hvert tilbud — udlejeren kan aldrig selv sætte sin egen pris.
+  kan tilbyde den videre til en anden spiller — skriv blot deres server-ID
+  (eller navn) direkte i NUI'en. Modtageren behøver IKKE selv have AgriHub
+  åben for at få tilbuddet (kun for at online) — kun selve
+  godkendelsen/signeringen kræver at de logger ind. Prisen genberegnes
+  **friskt fra config** ved hvert tilbud — udlejeren kan aldrig selv sætte
+  sin egen pris. Et verserende tilbud kan altid opsiges direkte ved at
+  skrive modpartens server-ID, uafhængigt af om kontrakt-kortet er synligt.
 - **Godkend -> signér -> aktiv:** lejeren skal godkende tilbuddet, FØR nogen
   af parterne kan signere. Kontrakten aktiveres (og pengene/nøglen flytter
   sig) først når **begge** parter har signeret. Se `AGR-XXXXXX`-ID'er,
@@ -170,6 +174,22 @@ resten af AgriHub fortsætter uden at crashe.
 - Resultat: ~0.00 ms i hvile. Alt reelt arbejde sker udelukkende som svar på
   en spillerhandling (ox_target-valg, NUI-callback, server-callback).
 
+## Robusthed
+
+- **`lib.requestModel` fejler med `error()`**, ikke et falsy return, hvis en
+  model er ugyldig eller timer ud — en enkelt forkert model-streng i
+  `config.lua` ville ellers stoppe HELE det flow den blev kaldt fra (fx et
+  helt opgave-start) uden nogen synlig fejl for spilleren. Alle
+  `lib.requestModel`-kald (køretøjer, trailere, landmand-peds) er derfor
+  `pcall`-beskyttede — en ugyldig model logges og springes over i stedet for
+  at crashe resten af flowet. Leverings-opgaver prøver desuden automatisk en
+  anden tilfældig model én gang, hvis den første fejler.
+- **NUI'en bruger ALDRIG `window.alert()`/`confirm()`/`prompt()`.** FiveM's
+  NUI-browser (CEF) håndterer native, blokerende JS-dialoger dårligt — de kan
+  fryse eller ødelægge resten af NUI'en. Al feedback (køb, fejl, kontrakt-
+  status osv.) vises i stedet via et rent DOM/CSS-baseret toast-system
+  (`toast()` i `web/js/app.js`), som aldrig blokerer.
+
 ## Test
 
 Kritisk server-logik er verificeret med en mock-test-harness (stub'et
@@ -185,6 +205,10 @@ FiveM/ESX/MySQL/exports, kører de **rigtige** `server/*.lua`-filer via
   begge parter har godkendt OG signeret.
 - Den atomiske "activating"-guard forhindrer dobbelt-opkrævning ved et
   samtidigt dobbelt signerings-forsøg.
+- Fremlejetilbud kan sendes OG opsiges-via-ID til/for en spiller der ikke
+  har en aktiv AgriHub-session — regressionstest for buggen hvor man ikke
+  kunne indtaste en spillers ID, fordi opslaget krævede at modtageren
+  allerede havde tabletten åben.
 
 Alle Lua-filer er desuden syntax-tjekket med `luac5.4 -p`, og
 `web/js/app.js` med `node --check`.

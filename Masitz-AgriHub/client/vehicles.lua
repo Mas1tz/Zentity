@@ -7,13 +7,27 @@
 
 AH = AH or {}
 
+-- lib.requestModel FEJLER med error() (ikke et falsy return) hvis modellen
+-- er ugyldig eller timer ud — en enkelt forkert model-streng i config.lua
+-- ville ellers stoppe HELE spawn-flowet uden nogen synlig fejl for
+-- spilleren. pcall'et her sikrer at vi altid får et roligt nil tilbage
+-- i stedet, og kan give spilleren en rigtig besked.
+local function SafeRequestModel(hash)
+    local ok, err = pcall(lib.requestModel, hash, 10000)
+    if not ok then
+        print(('[Masitz-AgriHub] Kunne ikke loade model %s: %s'):format(tostring(hash), tostring(err)))
+        return false
+    end
+    return true
+end
+
 -- Spawner et køretøj med en given plade og returnerer entity-handlet.
 -- Kaldes KUN efter serveren allerede har godkendt/registreret pladen
 -- (se server/vehicles.lua/rental.lua/tasks.lua) — clienten opfinder
 -- aldrig selv en plade.
 function AH.SpawnVehicle(model, coords, heading, plate)
     local hash = type(model) == 'string' and GetHashKey(model) or model
-    if not lib.requestModel(hash, 10000) then return nil end
+    if not SafeRequestModel(hash) then return nil end
 
     local veh = CreateVehicle(hash, coords.x, coords.y, coords.z, heading or 0.0, true, false)
     SetModelAsNoLongerNeeded(hash)
@@ -44,7 +58,7 @@ end
 -- returnerer trailer-entityen.
 function AH.AttachTrailer(vehicle, trailerModel, coords, heading)
     local hash = type(trailerModel) == 'string' and GetHashKey(trailerModel) or trailerModel
-    if not lib.requestModel(hash, 10000) then return nil end
+    if not SafeRequestModel(hash) then return nil end
 
     local trailer = CreateVehicle(hash, coords.x, coords.y, coords.z, heading or 0.0, true, false)
     SetModelAsNoLongerNeeded(hash)
