@@ -19,13 +19,6 @@ udløste den:
   helt tredje script der kalder `exports.ox_inventory:openInventory(...)`.
   Masitz-mehandler lytter på præcis dette state bag-flag. Se afsnittet
   "ox_inventory-integration" herunder for den fulde tekniske forklaring.
-- **Bildør:** Detekteres via ox_lib's `cache.vehicle` (samme mekanisme
-  ox_inventory selv bruger internt) - fuldstændig event-drevet, ingen
-  polling.
-- **Motorhjelm (valgfri):** Der findes ikke noget officielt event for dette
-  nogen steder (hverken i ox_inventory eller FiveM generelt), så det er
-  implementeret som en let, kontekst-styret dør-vinkel-måling der kun kører
-  hurtigt når spilleren rent faktisk står ved siden af et køretøj.
 - **`/me`-afsendelse:** Sker via `ExecuteCommand('me <besked>')` - PRÆCIS
   som hvis spilleren selv havde skrevet det i chatten. FiveM videresender
   automatisk en ukendt client-kommando til serveren med spillerens rigtige
@@ -62,9 +55,9 @@ Masitz-mehandler/
 - **ox_lib** (påkrævet) - bruges til `cache.vehicle`/`cache.seat`/`cache.ped`
   og til at registrere handlingernes cooldown-frie, event-drevne logik.
 - **ox_inventory** (påkrævet) - kilden til bagagerum/handskerum-detektionen.
-  Scriptet starter og fungerer stadig (bildør m.m.) selvom ox_inventory af
-  en eller anden grund ikke skulle være startet, men
-  bagagerum/handskerum-delen er naturligvis afhængig af den.
+  Scriptet starter og fungerer stadig selvom ox_inventory af en eller anden
+  grund ikke skulle være startet, men bagagerum/handskerum-delen er
+  naturligvis afhængig af den.
 - **ESX Legacy** er IKKE en hård dependency i `fxmanifest.lua` - scriptet
   bruger ingen ESX-specifikke funktioner direkte (kun natives + ox_lib +
   det eksisterende `/me`-system), så det holder afhængighederne minimale
@@ -89,18 +82,18 @@ Alt styres fra `config.lua` via `Config.MeHandler`:
 - `M.Actions` - selve `/me`-beskederne og om de er aktive. Dette er den
   ENESTE tabel der indeholder tekst - alt andet konfig refererer blot til
   et action-id herfra.
-- `M.Inventory` / `M.VehicleDoors` - detektions-specifikke indstillinger
-  (afstande, dørindex, poll-intervaller), adskilt fra selve beskederne.
+- `M.Inventory` - detektions-specifikke indstillinger (afstand til nærmeste
+  køretøj for bagagerums-klassificering), adskilt fra selve beskederne.
 
 ## 5. Sådan tilføjer du nye `/me`-handlinger
 
 **Fra config (permanent):**
 ```lua
-M.Actions.radio_out = { enabled = true, message = 'Tager radioen frem' }
+M.Actions.phone_out = { enabled = true, message = 'Tager telefonen frem' }
 ```
-Kald den herefter fra jeres eget script (radio, telefon, våben, osv.):
+Kald den herefter fra jeres eget script (telefon, våben, restraint, osv.):
 ```lua
-exports['Masitz-mehandler']:TriggerAction('radio_out')
+exports['Masitz-mehandler']:TriggerAction('phone_out')
 ```
 
 **Fra et andet script, helt uden at røre config.lua (dynamisk):**
@@ -178,10 +171,6 @@ rebindet ox_inventory's `inv2`, bruger ox_target, eller åbner det fra et
 helt tredje script. Ændrer spilleren sit keybind i FiveM Settings, virker
 Masitz-mehandler stadig uændret - der er intet at opdatere.
 
-Bildør-detektionen (`lib.onCache('vehicle', ...)`) er af samme grund heller
-ikke bundet til noget keybind - den reagerer på at spilleren rent faktisk
-er blevet siddende i et køretøj, uanset hvordan de kom derind.
-
 ## 8. Fejlfinding (troubleshooting)
 
 | Problem | Løsning |
@@ -190,7 +179,6 @@ er blevet siddende i et køretøj, uanset hvordan de kom derind.
 | `/me` sendes, men intet vises i chatten | Jeres eksisterende `/me`-system reagerer muligvis ikke på `ExecuteCommand`. Tjek at `M.MeIntegration.Command` matcher det faktiske kommandonavn (`me` som standard). |
 | To `/me`-beskeder for samme handling | Tjek `M.Cooldown` / handlingens egen `cooldown`-værdi - hvis I selv kalder `TriggerAction` fra et andet script OG auto-detektionen rammer samme handling, er det forventet at kun én går igennem pga. cooldown, men debug-loggen vil vise hvilken der blev blokeret. |
 | Forkert klassificering (fx "Åbner bagagerum" ved almindeligt inventar) | Se det ærlige forbehold i afsnit 6 - juster `M.Inventory.TrunkProximity` ned. |
-| Motorhjelm-`/me` virker ikke | Den er deaktiveret som standard (`hood_open`/`hood_close`). Aktivér begge i `M.Actions`, og tjek at dørindex `4` faktisk er motorhjelmen på de køretøjsmodeller I bruger (varierer for enkelte vare-/lastbiler) - juster `M.VehicleDoors.Watched` ved behov. |
 | Fallback-`/me` matcher ikke jeres eksisterende chat-farve/format | Sæt `M.MeIntegration.RegisterFallback = false` hvis I allerede har et `/me`-system - scriptet registrerer aldrig sin egen fallback oven i et eksisterende system (den tjekker `GetRegisteredCommands()` ved opstart), men indstillingen findes for at kunne slå det fuldstændigt fra eksplicit. |
 
 ## 9. Debug mode
@@ -204,8 +192,6 @@ Sæt `Config.MeHandler.Debug = true` for at få konsol-output (prefixet
 - Hvert `/me` der bliver sendt, og for hvilken handling.
 - Hver gang en handling bliver blokeret (deaktiveret eller cooldown), og
   hvor lang cooldown der er tilbage.
-- Motorhjelm-registreringer (åbnet/lukket, afstand, dør-vinkel-ratio) hvis
-  den funktion er aktiveret.
 
 Er slået fra som standard for at holde konsollen ren i produktion.
 
@@ -216,9 +202,6 @@ Er slået fra som standard for at holde konsollen ren i produktion.
 - Trunk-klassificeringen er en afstandsbaseret heuristik (se afsnit 6), ikke
   en 100% garanteret type-identifikation, da ox_inventory ikke eksponerer
   dette offentligt.
-- Motorhjelm-dørindex (`4`) er standard for de fleste almindelige
-  køretøjer, men kan afvige for specialkøretøjer - juster i config ved
-  behov.
 - `/me`-afsendelsen er klient-initieret (ligesom når en spiller selv
   skriver `/me`) - selve sikkerheden/anti-spam på beskedindholdet er jeres
   eksisterende `/me`-systems ansvar. Masitz-mehandler tilføjer udelukkende
