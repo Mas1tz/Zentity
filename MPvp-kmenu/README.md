@@ -62,9 +62,32 @@ fanges uden at vælte serveren.
 
 `Config.InventoryImagePath = 'nui://ox_inventory/web/images/'` — genbruger
 ox_inventory's egne billeder direkte (ingen dubletter, ingen base64).
-Billednavnet udledes automatisk af våben-/item-navnet
-(`weapon_pistol` → `weapon_pistol.png`). Mangler filen, viser NUI'en et
-diskret indbygget SVG-fallback-ikon i stedet for et ødelagt billede.
+Billednavnet udledes som udgangspunkt automatisk af våben-/item-navnet
+(`weapon_pistol` → `weapon_pistol.png`).
+
+For **Attachments** og **Skud** holder ikke det automatiske gæt, da jeres
+egne item-navne (`scope_attachment`, `clip_attachment`, `ammo`, osv.) ikke
+matcher noget ox_inventory reelt hedder. Disse har derfor et eksplicit
+`image`-felt i `config.lua`, verificeret direkte mod
+`overextended/ox_inventory`'s `data/weapons.lua` (Components/Ammo) og
+`web/images/`:
+
+| Item (config)          | Billede                  | Kilde i ox_inventory              |
+|-------------------------|--------------------------|-------------------------------------|
+| `scope_attachment`      | `at_scope_medium.png`    | `Components['at_scope_medium']`     |
+| `flashlight_attachment` | `at_flashlight.png`      | `Components['at_flashlight']`       |
+| `clip_attachment`       | `at_clip_extended.png`   | `Components['at_clip_extended_*']`  |
+| `grip_attachment`       | `at_grip.png`            | `Components['at_grip']`             |
+| `suppressor_attachment` | `at_suppressor.png`      | `Components['at_suppressor_light']` |
+| `ammo` (Skud)           | `ammo-9.png`             | `Ammo['ammo-9']`                    |
+
+Det er kun **visnings-billedet** der ændres — det item der rent faktisk
+gives til spilleren (og som `server.lua` validerer mod whitelisten) er
+stadig jeres eget konfigurerede item-navn, uændret.
+
+Mangler en billedfil (fx et helt eget custom item uden override), viser
+NUI'en et diskret indbygget SVG-fallback-ikon i stedet for et ødelagt
+billede.
 
 ## Performance
 

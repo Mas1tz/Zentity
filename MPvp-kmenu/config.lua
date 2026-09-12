@@ -126,16 +126,21 @@ Config.Weapons = {
         { label = 'Auto Shotgun',       weapon = 'weapon_autoshotgun' },
         { label = 'Combat Shotgun',     weapon = 'weapon_combatshotgun' },
     },
+    -- `image` herunder er eksplicitte overrides der peger på ox_inventory's
+    -- EGNE rigtige billeder fra data/weapons.lua's Components/Ammo-tabeller
+    -- (verificeret mod overextended/ox_inventory's web/images/) — det
+    -- faktiske item der gives er stadig jeres eget konfigurerede item
+    -- (`item = ...`), kun visningsbilledet er rettet.
     Attachment = {
-        { label = 'Scope',          item = 'scope_attachment' },
-        { label = 'Flashlight',     item = 'flashlight_attachment' },
-        { label = 'Extended Clip',  item = 'clip_attachment' },
-        { label = 'Grip',           item = 'grip_attachment' },
-        { label = 'Suppressor',     item = 'suppressor_attachment' },
+        { label = 'Scope',          item = 'scope_attachment',      image = 'at_scope_medium.png' },
+        { label = 'Flashlight',     item = 'flashlight_attachment', image = 'at_flashlight.png' },
+        { label = 'Extended Clip',  item = 'clip_attachment',       image = 'at_clip_extended.png' },
+        { label = 'Grip',           item = 'grip_attachment',       image = 'at_grip.png' },
+        { label = 'Suppressor',     item = 'suppressor_attachment', image = 'at_suppressor.png' },
     },
     Tilbehoer = {
         { label = 'Skudsikker vest', item = 'armour',  maxAmount = 5 },
-        { label = 'Skud',            item = 'ammo',    maxAmount = 20 },
+        { label = 'Skud',            item = 'ammo',    maxAmount = 20, image = 'ammo-9.png' },
         { label = 'Bandage',         item = 'bandage', maxAmount = 20 },
         { label = 'Radio',           item = 'radio',   maxAmount = 1 },
     },

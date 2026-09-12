@@ -138,7 +138,10 @@
                     label: entry.label,
                     category: categoryKey,
                     categoryLabel: categoryLabel[categoryKey] || categoryKey,
-                    image: `${key}.png`,
+                    // Brug et eksplicit config-billede hvis der er sat ét
+                    // (fx ox_inventory's rigtige attachment/ammo-billeder),
+                    // ellers gæt ud fra item-/våben-navnet som normalt.
+                    image: entry.image || `${key}.png`,
                     maxAmount: entry.maxAmount || state.maxItemAmount,
                 });
             });
