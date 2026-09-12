@@ -158,6 +158,19 @@ local function GetMapById(mapId)
     return nil
 end
 
+-- Samme fallback-logik som client/Create/create.lua's getCreateData bruger
+-- til at udfylde map.image ud fra Config.maps.imagePath.
+local function GetMapImage(map)
+    if not map then
+        return nil
+    end
+    local imagePath = (CreateConfig.maps and CreateConfig.maps.imagePath) or "./assets/Maps/%s.jpg"
+    if not map.image or tostring(map.image):find("^%./") then
+        return string.format(imagePath, map.id)
+    end
+    return map.image
+end
+
 local function IsBanned(identifier)
     local row = MySQL.scalar.await("SELECT 1 FROM bach_duels_bans WHERE player_id = ?", { identifier })
     return row ~= nil
@@ -373,13 +386,30 @@ local function BuildDuelSnapshot(duel)
     }
 end
 
-local function BuildActiveDuelView(duel)
-    -- Offentligt view til lobby-listen. privateCode lækkes ALDRIG her.
+-- NB: dette view fødes til to FORSKELLIGE, uafhængige forbrugere af samme
+-- getActiveDuels/updateDuels-payload — den kompilerede NUI (web/build/index.js,
+-- som bl.a. læser .teams.blueSize/.redSize, .players.blue/.red (array, ikke
+-- blot en optælling), .map.name/.image og .settings.*) OG den eksisterende,
+-- uændrede client-Lua (client/main.lua's changeTeam-tjek, som læser
+-- .players.blueIds/.redIds direkte). Begge navngivnings-konventioner
+-- medtages derfor samtidig — det er IKKE en fejl at have begge.
+--
+-- privateCode lækkes ALDRIG til andre end værten selv (viewerSource).
+local function BuildActiveDuelView(duel, viewerSource)
+    local map = GetMapById(duel.map)
+    local mapName = map and map.name or duel.map
+
+    local ownPrivateCode = nil
+    if duel.isPrivate and viewerSource and viewerSource == duel.host then
+        ownPrivateCode = duel.privateCode
+    end
+
     return {
         id = duel.id,
-        map = duel.map,
         host = duel.host,
+        hostId = duel.host,
         hostName = duel.hostName,
+        map = { id = duel.map, name = mapName, image = GetMapImage(map) },
         isPrivate = duel.isPrivate,
         status = duel.status,
         rounds = duel.rounds,
@@ -393,9 +423,29 @@ local function BuildActiveDuelView(duel)
         selectedWeapons = duel.selectedWeapons,
         vestUses = duel.vestUses,
         debugMode = duel.debugMode,
+        settings = {
+            rounds = duel.rounds,
+            gameMode = duel.gameMode,
+            isPrivate = duel.isPrivate,
+            privateCode = ownPrivateCode,
+            maxVestUses = duel.vestUses,
+            weaponMode = duel.weaponMode,
+            weaponClass = duel.weaponClass,
+            weapon = duel.weapon,
+            selectedWeapons = duel.selectedWeapons,
+        },
+        teams = {
+            blueSize = duel.teamASize,
+            redSize = duel.teamBSize,
+            maxSize = CreateConfig.teams and CreateConfig.teams.maxSize,
+            allowAsymmetric = CreateConfig.teams and CreateConfig.teams.allowAsymmetric,
+            isAsymmetric = duel.isAsymmetric,
+        },
         players = {
             blueIds = duel.teamA,
             redIds = duel.teamB,
+            blue = duel.teamA,
+            red = duel.teamB,
             blueNames = TeamNames(duel.teamA),
             redNames = TeamNames(duel.teamB),
         },
@@ -403,18 +453,21 @@ local function BuildActiveDuelView(duel)
     }
 end
 
-local function BuildActiveDuelsArray()
+local function BuildActiveDuelsArray(viewerSource)
     local list = {}
     for _, duel in pairs(Duels) do
         if duel.status == "waiting" then
-            list[#list + 1] = BuildActiveDuelView(duel)
+            list[#list + 1] = BuildActiveDuelView(duel, viewerSource)
         end
     end
     return list
 end
 
 local function BroadcastUpdateDuels()
-    TriggerClientEvent("bach_duels:updateDuels", -1, BuildActiveDuelsArray())
+    for _, playerId in ipairs(GetPlayers()) do
+        local pid = tonumber(playerId)
+        TriggerClientEvent("bach_duels:updateDuels", pid, BuildActiveDuelsArray(pid))
+    end
 end
 
 local function SetBucketForParticipants(duel, bucket)
@@ -1022,7 +1075,7 @@ lib.callback.register("bach_duels:createDebugDuel", function(source, duelData, d
 end)
 
 lib.callback.register("bach_duels:getActiveDuels", function(source)
-    return BuildActiveDuelsArray()
+    return BuildActiveDuelsArray(source)
 end)
 
 lib.callback.register("bach_duels:getAllDuels", function(source)
@@ -1475,14 +1528,7 @@ end, false)
 -- Stats / leaderboard
 -- ----------------------------------------------------------------------------
 
-lib.callback.register("bach_duels:getPersonalData", function(source)
-    local identifier = GetIdentifier(source)
-    local row = MySQL.single.await(
-        "SELECT wins, losses, headshots, score, name FROM bach_duels_stats WHERE identifier = ?",
-        { identifier })
-    if row then
-        return row
-    end
+local function FallbackPersonalData(source)
     return {
         wins = 0,
         losses = 0,
@@ -1490,12 +1536,31 @@ lib.callback.register("bach_duels:getPersonalData", function(source)
         score = 0,
         name = GetPlayerNameSafe(source) or "Unknown Player",
     }
+end
+
+lib.callback.register("bach_duels:getPersonalData", function(source)
+    local identifier = GetIdentifier(source)
+    -- pcall: en fejlende/afbrudt DB-forbindelse må ALDRIG lade denne
+    -- callback fejle uden svar (NUI'en forventer altid et validt objekt).
+    local ok, row = pcall(MySQL.single.await,
+        "SELECT wins, losses, headshots, score, name FROM bach_duels_stats WHERE identifier = ?",
+        { identifier })
+    if ok and type(row) == "table" then
+        return row
+    end
+    return FallbackPersonalData(source)
 end)
 
 lib.callback.register("bach_duels:getLeaderboardData", function(source)
-    local rows = MySQL.query.await(
+    -- pcall + type-tjek: NUI'en (Promise.all + .filter/.sort/.slice/.length)
+    -- kræver ALTID et array. nil/false/en fejlende query må derfor ALDRIG
+    -- kunne resultere i andet end en tom tabel her.
+    local ok, rows = pcall(MySQL.query.await,
         "SELECT name, wins, losses, headshots, score FROM bach_duels_stats ORDER BY score DESC LIMIT 100")
-    return { data = rows or {} }
+    if not ok or type(rows) ~= "table" then
+        rows = {}
+    end
+    return { data = rows }
 end)
 
 local function PeekLastDuelResult(source)
