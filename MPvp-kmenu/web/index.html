@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MPvp Weapon Hub</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app" class="hidden">
+    <div id="device">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-title">MPVP</div>
+                <div class="brand-sub">MASITZ PVP</div>
+            </div>
+
+            <nav class="nav" id="nav-list">
+                <button class="nav-item active" data-view="dashboard" data-category="">
+                    <span class="nav-icon" data-icon="grid"></span>
+                    <span>Oversigt</span>
+                </button>
+                <!-- Kategori-knapper indsættes her af app.js -->
+            </nav>
+
+            <div class="sidebar-search">
+                <span class="search-label">Søg</span>
+                <div class="search-box">
+                    <span class="search-icon" data-icon="search"></span>
+                    <input type="text" id="search-input" placeholder="Søg efter våben eller item…" autocomplete="off">
+                </div>
+            </div>
+        </aside>
+
+        <main class="content">
+            <header class="topbar">
+                <div class="topbar-title">
+                    <span id="topbar-heading">Weapon Hub</span>
+                    <span class="topbar-sub" id="topbar-sub">Vælg en kategori for at komme i gang</span>
+                </div>
+                <button class="close-hint" id="btn-close" title="Luk (K / ESC)">
+                    <span data-icon="close"></span>
+                    <span>Luk</span>
+                </button>
+            </header>
+
+            <div class="view-area" id="view-area"></div>
+        </main>
+    </div>
+</div>
+
+<div id="toast-stack"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

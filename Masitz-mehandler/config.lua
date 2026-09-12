@@ -67,26 +67,33 @@ M.Actions = {
     glovebox_open  = { enabled = true,  message = 'Åbner handskerum' },
     glovebox_close = { enabled = true,  message = 'Lukker handskerum' },
 
-    -- --- Bildør (ind-/udstigning) ---
-    door_open      = { enabled = true,  message = 'Åbner bildør' },
-    door_close     = { enabled = true,  message = 'Lukker bildør' },
-
-    -- --- Motorhjelm (native dør-vinkel, se README - deaktiveret som
-    --     standard, da dør-index for "motorhjelm" varierer mellem
-    --     køretøjsmodeller og derfor kræver lidt tuning pr. server) ---
-    hood_open      = { enabled = false, message = 'Åbner motorhjelm' },
-    hood_close     = { enabled = false, message = 'Lukker motorhjelm' },
-
     -- --- Eksempler klar til fremtidig brug (deaktiveret som standard).
     --     Aktivér dem, og kald dem fra jeres egne scripts via:
-    --     exports['Masitz-mehandler']:TriggerAction('radio_out') ---
-    radio_out      = { enabled = false, message = 'Tager radioen frem' },
-    radio_away     = { enabled = false, message = 'Lægger radioen væk' },
+    --     exports['Masitz-mehandler']:TriggerAction('phone_out') ---
     phone_out      = { enabled = false, message = 'Tager telefonen frem' },
     phone_away     = { enabled = false, message = 'Lægger telefonen væk' },
     cuffs_out      = { enabled = false, message = 'Tager håndjern frem' },
     weapon_out     = { enabled = false, message = 'Tager sit våben frem' },
     weapon_away    = { enabled = false, message = 'Lægger sit våben væk' },
+
+    -- --- Restraint/anholdelses-handlinger (kaldes fra Masitz-Restraint
+    --     via exports['Masitz-mehandler']:TriggerAction('<id>')) ---
+    saet_i_strips            = { enabled = true, message = 'Sætter personen i strips' },
+    tag_ud_af_strips         = { enabled = true, message = 'Tager personen ud af strips' },
+    saet_person_i_koretoj    = { enabled = true, message = 'Sætter personen i køretøjet' },
+    tag_person_ud_af_koretoj = { enabled = true, message = 'Tager personen ud af køretøjet' },
+    leder_efter              = { enabled = true, message = 'Leder efter ting i personens lommer' },
+    eskortere_personen       = { enabled = true, message = 'Eskorterer personen' },
+    loefter_person           = { enabled = true, message = 'Løfter personen' },
+    slipper_personen         = { enabled = true, message = 'Slipper personen' },
+    saetter_i_koretoj        = { enabled = true, message = 'Sætter personen ind i køretøjet' },
+    visitere_personen        = { enabled = true, message = 'Visiterer personen' },
+    tager_fra_koretoj        = { enabled = true, message = 'Tager personen ud af køretøjet' },
+    bagagerum                = { enabled = true, message = 'Åbner bagagerum' },
+    handskerum               = { enabled = true, message = 'Åbner handskerum' },
+    blindfold                = { enabled = true, message = 'Giver blindfold på' },
+    blindfold_off            = { enabled = true, message = 'Tager blindfold af' },
+    overgiv                  = { enabled = true, message = '~y~Overgiver sig' },
 }
 
 -- ============================================================
@@ -104,33 +111,4 @@ M.Inventory = {
 
     TrunkAction    = { open = 'trunk_open',    close = 'trunk_close' },
     GloveboxAction = { open = 'glovebox_open', close = 'glovebox_close' },
-}
-
--- ============================================================
---  KØRETØJSDØRE (native GTA-dørindex, IKKE ox_inventory)
--- ============================================================
-M.VehicleDoors = {
-
-    -- Skal "Åbner/lukker bildør" kun trigges når spilleren selv er
-    -- fører? (false = også som passager)
-    OnlyDriver = false,
-
-    DriverDoorAction = { open = 'door_open', close = 'door_close' },
-
-    -- Ekstra døre der overvåges via dør-vinkel (kun aktiv hvis mindst
-    -- én af de tilknyttede handlinger er enabled = true herover).
-    -- Nøglen er GTA's dørindex. 4 = motorhjelm på langt de fleste
-    -- almindelige køretøjer (nogle vare-/lastbiler og specialkøretøjer
-    -- afviger - juster her ved behov).
-    Watched = {
-        [4] = { open = 'hood_open', close = 'hood_close' },
-    },
-
-    -- Interval (ms) for den lette dør-vinkel-poll, KUN mens spilleren
-    -- rent faktisk står tæt på et køretøj der overvåges (se client.lua).
-    PollInterval = 300,
-
-    -- Interval (ms) for "er der overhovedet et køretøj i nærheden"-tjek
-    -- mens spilleren IKKE står tæt på noget - holder pollingen billig.
-    IdlePollInterval = 1500,
 }

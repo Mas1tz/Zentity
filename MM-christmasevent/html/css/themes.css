@@ -1,0 +1,135 @@
+/* ══════════════════════════════════════════════════════════
+   THEME SYSTEM — mm-christmas
+   ══════════════════════════════════════════════════════════
+   Every theme defines the SAME set of CSS custom properties.
+   Adding a new theme (Halloween, Valentine, Easter, ...) later
+   only requires one new `[data-theme="..."]` block here plus one
+   entry in js/settings.js's THEME_LIST — nothing else in the CSS/JS
+   needs to change, since every component only ever reads the
+   `--t-*` variables, never a hardcoded color.
+
+   Note on "art": theme motifs are implemented with pure CSS +
+   Unicode glyphs (no bitmap assets), so there is zero dependency on
+   external image hosts and nothing to go missing. This keeps the
+   resource lightweight and self-contained.
+   ══════════════════════════════════════════════════════════ */
+
+/* ── THEME 1: CHRISTMAS SNOW (default) ───────────────────── */
+:root,
+[data-theme="snow"] {
+  --t-glass-rgb:     15 30 20;
+  --t-panel-rgb:     25 55 35;
+  --t-sidebar-rgb:   10 22 14;
+  --t-glass-btn:     rgba(30, 65, 40, 0.75);
+  --t-border:        rgba(255,255,255,.12);
+  --t-border-hi:     rgba(255,255,255,.22);
+  --t-text-1:        #f0f4f0;
+  --t-text-2:        #a8c4a8;
+  --t-text-3:        #5a7a5a;
+  --t-gold:          #f1c40f;
+  --t-gold-rgb:      241 196 15;
+  --t-accent:        #e74c3c;
+  --t-accent-rgb:    231 76 60;
+  --t-accent2:       #27ae60;
+  --t-accent2-dark:  #1a7a3a;
+  --t-accent2-rgb:   39 174 96;
+  --t-accent2-dim:   rgba(39,174,96,.18);
+}
+[data-theme="snow"] .theme-motif::before {
+  content: '❄';
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 420px;
+  color: rgba(255,255,255,.05);
+}
+
+/* ── THEME 2: SANTA ───────────────────────────────────────── */
+[data-theme="santa"] {
+  --t-glass-rgb:     40 12 12;
+  --t-panel-rgb:     70 20 20;
+  --t-sidebar-rgb:   26 8 8;
+  --t-glass-btn:     rgba(90, 25, 25, 0.75);
+  --t-border:        rgba(255,255,255,.14);
+  --t-border-hi:     rgba(255,255,255,.26);
+  --t-text-1:        #fdf6f0;
+  --t-text-2:        #e0b8b0;
+  --t-text-3:        #8a5a52;
+  --t-gold:          #ffd166;
+  --t-gold-rgb:      255 209 102;
+  --t-accent:        #c0392b;
+  --t-accent-rgb:    192 57 43;
+  --t-accent2:       #e74c3c;
+  --t-accent2-dark:  #a93226;
+  --t-accent2-rgb:   231 76 60;
+  --t-accent2-dim:   rgba(231,76,60,.20);
+}
+[data-theme="santa"] .theme-motif::before {
+  content: '🎅';
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 380px;
+  filter: grayscale(1);
+  opacity: .06;
+}
+
+/* ── THEME 3: CHRISTMAS TREES ─────────────────────────────── */
+[data-theme="trees"] {
+  --t-glass-rgb:     8 24 14;
+  --t-panel-rgb:     14 42 24;
+  --t-sidebar-rgb:   5 16 9;
+  --t-glass-btn:     rgba(20, 55, 30, 0.75);
+  --t-border:        rgba(255,255,255,.10);
+  --t-border-hi:     rgba(255,255,255,.20);
+  --t-text-1:        #eef6ee;
+  --t-text-2:        #9fc4a4;
+  --t-text-3:        #4f7a58;
+  --t-gold:          #e8c34a;
+  --t-gold-rgb:      232 195 74;
+  --t-accent:        #d94f4f;
+  --t-accent-rgb:    217 79 79;
+  --t-accent2:       #2f9e52;
+  --t-accent2-dark:  #1d6b37;
+  --t-accent2-rgb:   47 158 82;
+  --t-accent2-dim:   rgba(47,158,82,.18);
+}
+[data-theme="trees"] .theme-motif::before {
+  content: '🎄';
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 420px;
+  opacity: .06;
+}
+[data-theme="trees"] .sidebar-header {
+  background-image: repeating-linear-gradient(90deg, rgba(232,195,74,.35) 0 6px, transparent 6px 18px);
+  background-position: bottom;
+  background-size: 100% 2px;
+  background-repeat: no-repeat;
+}
+
+/* ── THEME 4: REINDEER ─────────────────────────────────────── */
+[data-theme="reindeer"] {
+  --t-glass-rgb:     32 22 14;
+  --t-panel-rgb:     54 36 22;
+  --t-sidebar-rgb:   22 15 9;
+  --t-glass-btn:     rgba(70, 46, 28, 0.75);
+  --t-border:        rgba(255,255,255,.12);
+  --t-border-hi:     rgba(255,255,255,.22);
+  --t-text-1:        #f7efe6;
+  --t-text-2:        #cbb097;
+  --t-text-3:        #8a6f57;
+  --t-gold:          #e0a458;
+  --t-gold-rgb:      224 164 88;
+  --t-accent:        #8c3b2e;
+  --t-accent-rgb:    140 59 46;
+  --t-accent2:       #4c7a4a;
+  --t-accent2-dark:  #345a33;
+  --t-accent2-rgb:   76 122 74;
+  --t-accent2-dim:   rgba(76,122,74,.18);
+}
+[data-theme="reindeer"] .theme-motif::before {
+  content: '🦌';
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 380px;
+  opacity: .07;
+}
