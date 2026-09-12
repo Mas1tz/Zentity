@@ -63,9 +63,16 @@ Config.Defaults = {
 --    event       (string|nil)   — TriggerEvent client-side. Brug til IKKE-følsomme ting.
 --    serverEvent (string|nil)   — sendes gennem den server-validerede gateway (se
 --                                 server/main.lua). Brug ALTID denne til penge/items/adgang.
+--    export      ({resource, method}|nil) — kalder et andet resources client-export
+--                                 direkte (fx { resource = 'bach_duels', method =
+--                                 'OpenDuelLobbyUi' }). Rent client-side ligesom `event`
+--                                 — brug KUN til UI/menuer uden konsekvens, aldrig til
+--                                 penge/items/adgang (bruger serverEvent til det).
 --    groups      ({[jobName]=minGrade}|nil) — håndhæves BÅDE client-side (skjuler
 --                                 optionen/prompten) OG server-side (hvis serverEvent bruges).
 --    canInteract (function|nil) — ekstra, valgfri client-side gating ud over groups.
+--
+--  En option/textui skal have MINDST ét af event/serverEvent/export sat.
 -- ============================================================
 
 Config.Peds = {
@@ -169,6 +176,37 @@ Config.Peds = {
             event    = 'Masitz-peds:client:example',
         },
     },
+
+    -- Eksempel 4: åbner et ANDET resources UI direkte via dets export
+    -- (her bach_duels' duel-lobby) i stedet for et event — ingen
+    -- mellemliggende event-handler nødvendig for rene UI-kald.
+    {
+        id     = 'dealer_2',
+        model  = 'mp_m_shopkeep_01',
+        coords = vec4(885.60, -11.18, 78.76, 332.12),
+
+        freeze       = true,
+        invincible   = true,
+        block_events = true,
+        relationshipGroup = 'CRIMINALS',
+
+        spawnDistance   = 50.0,
+        despawnDistance = 75.0,
+
+        interaction = 'target',
+        target = {
+            enabled  = true,
+            distance = 2.5,
+            options = {
+                {
+                    name   = 'open_duels',
+                    label  = 'Åbn Duels',
+                    icon   = 'fa-solid fa-gun',
+                    export = { resource = 'bach_duels', method = 'OpenDuelLobbyUi' },
+                },
+            },
+        },
+    },
 }
 
 -- ============================================================
@@ -181,9 +219,16 @@ local function LogConfigError(fmt, ...)
 end
 
 local function ValidateActionLike(cfg, label)
-    if not cfg.event and not cfg.serverEvent then
-        LogConfigError('%s har hverken "event" eller "serverEvent" — den kan aldrig gøre noget.', label)
+    if not cfg.event and not cfg.serverEvent and not cfg.export then
+        LogConfigError('%s har hverken "event", "serverEvent" eller "export" — den kan aldrig gøre noget.', label)
         return false
+    end
+    if cfg.export then
+        if type(cfg.export) ~= 'table' or type(cfg.export.resource) ~= 'string' or cfg.export.resource == ''
+            or type(cfg.export.method) ~= 'string' or cfg.export.method == '' then
+            LogConfigError('%s.export skal være { resource = "...", method = "..." }.', label)
+            return false
+        end
     end
     if cfg.groups and type(cfg.groups) ~= 'table' then
         LogConfigError('%s.groups skal være en tabel ({ jobnavn = mingrad }).', label)

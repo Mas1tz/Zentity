@@ -88,15 +88,26 @@ en animation, en menu der åbner. **Brug `serverEvent` til alt der giver
 penge, items eller adgang** — det er den eneste vej der bliver
 genvalideret server-side.
 
+En tredje, rent client-side mulighed er `export = { resource = '...',
+method = '...' }` — kalder et andet resources export direkte (fx
+`{ resource = 'bach_duels', method = 'OpenDuelLobbyUi' }` for at åbne
+et andet scripts NUI). Den er ligesom `event` UDEN nogen server-
+genvalidering, så brug den kun til UI/menuer uden konsekvens, aldrig
+til penge/items/adgang. Kaldet er `pcall`-beskyttet, så et resource
+der ikke kører (eller ikke har den export) blot logger en debug-linje
+i stedet for at crashe interaktionen.
+
 Verificeret med to mock-test-suiter der kører de RIGTIGE
 `config.lua`/`server/main.lua`-filer under `lua5.4`:
 
-- **Config-validering** (21 assertions): de 3 medfølgende eksempel-peds
-  validerer korrekt; en håndfuld bevidst ødelagte entries (manglende
+- **Config-validering** (27 assertions): de 4 medfølgende eksempel-peds
+  validerer korrekt (inkl. `export`-baseret UI-kald til et andet
+  resource); en håndfuld bevidst ødelagte entries (manglende
   id/model/coords, forkert coords-type, ugyldig interaction, tom
-  target.options, manglende event/serverEvent, duplikeret id) afvises
-  alle med en klar logbesked UDEN at crashe eller blokere en gyldig
-  entry der kommer efter dem i listen.
+  target.options, manglende event/serverEvent/export, ugyldig
+  export-form, duplikeret id) afvises alle med en klar logbesked UDEN
+  at crashe eller blokere en gyldig entry der kommer efter dem i
+  listen — mens en option med KUN `export` sat korrekt accepteres.
 - **Interaktions-gatewayen** (25 assertions): et gyldigt kald
   videresender præcis én gang til det korrekte event; en option uden
   `serverEvent` kan ikke bruges til at trigge gatewayen overhovedet;

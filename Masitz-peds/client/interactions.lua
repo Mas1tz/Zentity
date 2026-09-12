@@ -71,6 +71,14 @@ function PEDS.TriggerAction(action, id, optionName)
     if action.serverEvent then
         TriggerServerEvent('Masitz-peds:server:interact', id, optionName)
     end
+    if action.export then
+        local ok, err = pcall(function()
+            exports[action.export.resource][action.export.method](exports[action.export.resource])
+        end)
+        if not ok then
+            DebugPrint('Export-kald fejlede (%s:%s): %s', action.export.resource, action.export.method, tostring(err))
+        end
+    end
     DebugPrint('Interaction triggered: ped=%s option=%s', id, tostring(optionName))
 end
 
