@@ -1,28 +1,49 @@
 -- ============================================================
 --  MPvp-idmenu | client/main.lua
---  Rent ID-peek: PAGE DOWN toggler visning af server-ID over andre
---  spillere. INGEN menu, INGEN NUI, INGEN server-events.
+--  Rent ID+navn-peek: PAGE DOWN toggler visning af server-ID +
+--  display-navn over andre spillere. INGEN menu, INGEN NUI,
+--  INGEN server-events.
 --
 --  PERFORMANCE-DESIGN:
 --  - Når ID-peek er OFF: intet loop, ingen native-kald, 0.00ms.
 --  - Når ID-peek er ON: ét render-loop (skal køre hvert frame, da
 --    GTA's text/rect-natives kun holder i ét frame ad gangen), men
---    den TUNGE del (GetActivePlayers/GetPlayerServerId/GetPlayerPed)
---    sker kun hvert Config.CacheInterval ms via en lille cache — ikke
---    hvert frame.
+--    den TUNGE del (GetActivePlayers/GetPlayerServerId/GetPlayerName)
+--    sker kun hvert Config.IDPeek.cacheInterval ms via en lille cache
+--    — ikke hvert frame.
 --  - Ingen permanent input-polling-loop: tasten bruger
 --    RegisterKeyMapping + RegisterCommand, som FiveM selv håndterer
 --    uden nogen konstant Wait(0)-loop.
 -- ============================================================
 
+if not Config.IDPeek.enabled then return end
+
 local idModeActive = false
 local renderThreadRunning = false
 
--- { { playerIndex = , serverId = , ped = }, ... } — genopbygges kun
--- periodisk mens ID-peek er aktivt, ikke hvert frame.
+-- { { playerIndex, serverId, ped, displayName }, ... } — genopbygges
+-- kun periodisk mens ID-peek er aktivt, ikke hvert frame.
 local cachedPlayers = {}
+local cachedPlayerCount = 0
 
-local sqDistance = Config.Distance * Config.Distance
+local sqDistance = Config.IDPeek.distance * Config.IDPeek.distance
+
+-- ─── STEAM/DISPLAY-NAVN — modulær, isoleret opslags-funktion ─────
+-- FiveM eksponerer INTET separat "Steam-navn" til klienten for andre
+-- spillere end en selv — GetPlayerIdentifiers (som indeholder
+-- steam:-identifieren) findes kun SERVER-side. GetPlayerName(...) er
+-- derfor den bedste og eneste pålidelige client-native til formålet;
+-- den er i praksis det navn serveren har sat for spilleren (typisk
+-- Steam-navnet ved connect). Hele opslaget er samlet i ÉN funktion,
+-- så metoden nemt kan udskiftes senere (fx til et custom RP-navn
+-- synkroniseret via et eget system) uden at røre resten af koden.
+local function GetPlayerDisplayName(playerIndex)
+    local ok, name = pcall(GetPlayerName, playerIndex)
+    if not ok or not name or name == '' then
+        return 'Ukendt'
+    end
+    return name
+end
 
 -- ─── SPILLER-CACHE ───────────────────────────────────────────────
 -- Bygger listen af andre spillere (aldrig dig selv) på ny. Håndterer
@@ -45,12 +66,28 @@ local function RebuildPlayerCache()
                     playerIndex = playerIndex,
                     serverId = GetPlayerServerId(playerIndex),
                     ped = ped,
+                    displayName = GetPlayerDisplayName(playerIndex),
                 }
             end
         end
     end
 
     cachedPlayers = list
+    cachedPlayerCount = count
+end
+
+-- ─── VALIDERING PR. SPILLER (uafhængigt af render-koden) ─────────
+local function IsPlayerValidForPeek(ped)
+    local cfg = Config.IDPeek
+    if not DoesEntityExist(ped) then return false end
+    if not cfg.showDeadPlayers and IsEntityDead(ped) then return false end
+    if not cfg.showPlayersInVehicles and IsPedInAnyVehicle(ped, false) then return false end
+    return true
+end
+
+local function IsPlayerVisible(myPed, ped)
+    if not Config.IDPeek.lineOfSight then return true end
+    return HasEntityClearLosToEntity(myPed, ped, 17)
 end
 
 -- ─── TEKST-BREDDE (til badge-baggrunden) ─────────────────────────
@@ -62,27 +99,79 @@ local function GetRenderedTextWidth(text, font, scale)
     return GetTextScreenWidth(true)
 end
 
-local function ResolveTextColor(distance)
-    local dc = Config.DistanceColors
-    if not dc.enabled then return Config.Text.color end
-    if distance <= dc.close.distance then return dc.close.color end
-    if distance <= dc.medium.distance then return dc.medium.color end
-    return dc.far.color
+local function ResolveColors(distance)
+    local txt = Config.IDPeek.text
+    local dc = Config.IDPeek.distanceColors
+    if not dc.enabled then return txt.idColor, txt.nameColor end
+
+    if distance <= dc.close.distance then return dc.close.idColor, dc.close.nameColor end
+    if distance <= dc.medium.distance then return dc.medium.idColor, dc.medium.nameColor end
+    return dc.far.idColor, dc.far.nameColor
 end
 
--- ─── TEGNING AF ÉT ID-BADGE ───────────────────────────────────────
-local function DrawIdBadge(screenX, screenY, text, color)
-    local txt = Config.Text
-    local bg = Config.Background
-    local border = Config.Border
+-- ─── TEGNING ───────────────────────────────────────────────────────
+local function DrawPlayerID(screenX, screenY, text, color)
+    local txt = Config.IDPeek.text
+    SetTextFont(txt.font)
+    SetTextScale(txt.idScale, txt.idScale)
+    SetTextProportional(true)
+    SetTextCentre(true)
+    SetTextColour(color[1], color[2], color[3], color[4])
+    if txt.outline then SetTextOutline() end
+    SetTextEntry('STRING')
+    AddTextComponentString(text)
+    DrawText(screenX, screenY)
+end
+
+local function DrawPlayerName(screenX, screenY, text, color)
+    local txt = Config.IDPeek.text
+    SetTextFont(txt.font)
+    SetTextScale(txt.nameScale, txt.nameScale)
+    SetTextProportional(true)
+    SetTextCentre(true)
+    SetTextColour(color[1], color[2], color[3], color[4])
+    if txt.outline then SetTextOutline() end
+    SetTextEntry('STRING')
+    AddTextComponentString(text)
+    DrawText(screenX, screenY)
+end
+
+-- Tegner ID + navn som ÉT samlet badge (ikke to separate bokse), med
+-- ID'et visuelt mere fremtrædende (større skala) end navnet derunder.
+local function DrawPlayerInfo(screenX, screenY, idText, nameText, distance)
+    local cfg = Config.IDPeek
+    local txt = cfg.text
+    local bg = cfg.background
+    local border = cfg.border
+
+    local showId = cfg.showId and idText ~= nil
+    local showName = cfg.showName and nameText ~= nil
+    if not showId and not showName then return end
+
+    local idColor, nameColor = ResolveColors(distance)
+
+    local idY = screenY + txt.idOffset
+    local nameY = screenY + txt.nameOffset
 
     if bg.enabled then
-        local textWidth = GetRenderedTextWidth(text, txt.font, txt.scale)
-        local rectWidth = textWidth + bg.paddingX * 2
-        local rectHeight = (txt.scale * 0.9) * 0.055 + bg.paddingY * 2
-        -- GTA's DrawText tegner fra en baseline lidt over det angivne
-        -- Y — dette lille løft centrerer boksen visuelt om teksten.
-        local rectY = screenY + rectHeight * 0.18
+        local idWidth = showId and (GetRenderedTextWidth(idText, txt.font, txt.idScale) + bg.paddingX * 2) or 0
+        local nameWidth = showName and (GetRenderedTextWidth(nameText, txt.font, txt.nameScale) + bg.paddingX * 2) or 0
+        local rectWidth = math.max(idWidth, nameWidth)
+
+        local idHalfHeight = (txt.idScale * 0.9) * 0.0275
+        local nameHalfHeight = (txt.nameScale * 0.9) * 0.0275
+
+        local top, bottom
+        if showId and showName then
+            top, bottom = idY - idHalfHeight, nameY + nameHalfHeight
+        elseif showId then
+            top, bottom = idY - idHalfHeight, idY + idHalfHeight
+        else
+            top, bottom = nameY - nameHalfHeight, nameY + nameHalfHeight
+        end
+
+        local rectHeight = (bottom - top) + bg.paddingY * 2
+        local rectY = (top + bottom) / 2
 
         DrawRect(screenX, rectY, rectWidth, rectHeight, bg.color[1], bg.color[2], bg.color[3], bg.color[4])
 
@@ -95,31 +184,22 @@ local function DrawIdBadge(screenX, screenY, text, color)
         end
     end
 
-    SetTextFont(txt.font)
-    SetTextScale(txt.scale, txt.scale)
-    SetTextProportional(true)
-    SetTextCentre(true)
-    SetTextColour(color[1], color[2], color[3], color[4])
-    if txt.outline then SetTextOutline() end
-    SetTextEntry('STRING')
-    AddTextComponentString(text)
-    DrawText(screenX, screenY)
+    if showId then DrawPlayerID(screenX, idY, idText, idColor) end
+    if showName then DrawPlayerName(screenX, nameY, nameText, nameColor) end
 end
 
 -- ─── RENDER: ÉT PAS OVER DEN CACHEDE SPILLERLISTE ────────────────
-local function RenderPlayerIds()
+local function RenderPlayerInfos()
     local playerPed = PlayerPedId()
     if not DoesEntityExist(playerPed) then return end
 
     local myCoords = GetEntityCoords(playerPed)
-    local showDead = Config.ShowDeadPlayers
-    local requireLos = Config.RequireLineOfSight
 
-    for i = 1, #cachedPlayers do
+    for i = 1, cachedPlayerCount do
         local data = cachedPlayers[i]
         local ped = data.ped
 
-        if DoesEntityExist(ped) and (showDead or not IsEntityDead(ped)) then
+        if IsPlayerValidForPeek(ped) then
             local pedCoords = GetEntityCoords(ped)
             local dx = pedCoords.x - myCoords.x
             local dy = pedCoords.y - myCoords.y
@@ -130,16 +210,14 @@ local function RenderPlayerIds()
             -- helt at bruge tid på LOS-raytrace/tegning for alt der er
             -- for langt væk til overhovedet at komme i betragtning.
             if distSq <= sqDistance then
-                if not requireLos or HasEntityClearLosToEntity(playerPed, ped, 17) then
-                    local offset = IsPedInAnyVehicle(ped, false) and Config.VehicleIdOffset or Config.PlayerIdOffset
+                if IsPlayerVisible(playerPed, ped) then
+                    local inVehicle = IsPedInAnyVehicle(ped, false)
+                    local offset = inVehicle and Config.IDPeek.vehicleHeight or Config.IDPeek.height
                     local onScreen, screenX, screenY = World3dToScreen2d(pedCoords.x, pedCoords.y, pedCoords.z + offset)
 
                     if onScreen then
-                        local color = Config.Text.color
-                        if Config.DistanceColors.enabled then
-                            color = ResolveTextColor(math.sqrt(distSq))
-                        end
-                        DrawIdBadge(screenX, screenY, tostring(data.serverId), color)
+                        local distance = Config.IDPeek.distanceColors.enabled and math.sqrt(distSq) or 0
+                        DrawPlayerInfo(screenX, screenY, tostring(data.serverId), data.displayName, distance)
                     end
                 end
             end
@@ -158,12 +236,12 @@ local function StartRenderThread()
 
         while idModeActive do
             local now = GetGameTimer()
-            if now - lastCacheUpdate >= Config.CacheInterval then
+            if now - lastCacheUpdate >= Config.IDPeek.cacheInterval then
                 RebuildPlayerCache()
                 lastCacheUpdate = now
             end
 
-            RenderPlayerIds()
+            RenderPlayerInfos()
             Wait(0)
         end
 
@@ -180,6 +258,7 @@ local function ToggleIdMode()
     else
         -- Ingen grund til at holde på ped-referencer mens systemet er slukket.
         cachedPlayers = {}
+        cachedPlayerCount = 0
     end
 end
 
@@ -190,11 +269,12 @@ RegisterCommand('mpvp_toggleid', function()
     ToggleIdMode()
 end, false)
 
-RegisterKeyMapping('mpvp_toggleid', 'Vis spiller-ID (MPvp)', 'keyboard', Config.Key)
+RegisterKeyMapping('mpvp_toggleid', 'Vis spiller-ID + navn (MPvp)', 'keyboard', Config.IDPeek.key)
 
 -- ─── CLEANUP ─────────────────────────────────────────────────────
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
     idModeActive = false
     cachedPlayers = {}
+    cachedPlayerCount = 0
 end)
